@@ -207,10 +207,22 @@ const Points = {
         }
 
         // Add marker at the snapping point
-        const marker = L.marker(this.snappingPoint).addTo(Map.map);
+        const ratedIcon = L.divIcon({
+            className: `custom-marker rating-${rating}`,
+            html: `<div class="marker-inner"></div>`,
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34]
+        });
+        
+        const marker = L.marker(this.snappingPoint, {
+            icon: ratedIcon
+        }).addTo(Map.map);
+        
         marker.bindPopup(`Rating: ${rating}/5, Influence: ${influenceDistance}m`).openPopup();
 
         this.addPoint(this.snappingPoint, rating, influenceDistance);
+        Routes.redrawRoutes(); // Перерисовываем маршруты, чтобы обновить градиент
         UI.updateRoutesList(Routes.getAll());
         UI.updateStatus(`Point with rating ${rating} and influence ${influenceDistance}m added. Click again or finish adding.`);
     },
@@ -240,21 +252,35 @@ const Points = {
             popupAnchor: [1, -34]
         });
 
+        // Функция для создания иконки с заданным цветом рейтинга
+        const createRatedIcon = (rating, isSelected) => {
+            return L.divIcon({
+                className: `custom-marker rating-${rating}${isSelected ? ' selected' : ''}`,
+                html: `<div class="marker-inner"></div>`,
+                iconSize: [25, 41],
+                iconAnchor: [12, 41],
+                popupAnchor: [1, -34]
+            });
+        };
+
         // Redraw all points
         this.points.forEach(point => {
             if (point && typeof point.lat === 'number' && typeof point.lng === 'number') {
+                const isSelected = point.id === this.selectedPointId;
+                const icon = createRatedIcon(point.rating || 1, isSelected);
+                
                 const marker = L.marker([point.lat, point.lng], {
                     data: { 
                         pointId: point.id,
                         rating: point.rating || 1
                     },
-                    icon: point.id === this.selectedPointId ? selectedIcon : defaultIcon
+                    icon: icon
                 }).addTo(Map.map);
                 
                 // Set the rating data attribute for color
                 marker.getElement().setAttribute('data-rating', point.rating || 1);
                 
-                marker.bindPopup(`Rating: ${point.rating || 'N/A'}/5`);
+                marker.bindPopup(`Rating: ${point.rating || 'N/A'}/5, Influence: ${point.influenceDistance || Routes.DEFAULT_INFLUENCE_DISTANCE}m`);
                 
                 // Add click handler for point selection
                 marker.on('click', () => {

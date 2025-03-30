@@ -6,8 +6,8 @@ const Routes = {
     currentRouteId: null,
     selectedRouteId: null,
     currentRouteStats: { duration: 0, distance: 0 },
-    DEFAULT_INFLUENCE_DISTANCE: 111, // meters - значение по умолчанию
-    MAX_MICRO_SEGMENT_LENGTH: 10, // meters - максимальная длина одного микро-сегмента
+    DEFAULT_INFLUENCE_DISTANCE: 111, // in meters - default influence distance
+    MAX_MICRO_SEGMENT_LENGTH: 15, // in meters, 15 meters is the maximum distance of a micro-segment
 
     getColorForRating(rating) {
         if (!rating) return '#000000'; // black for no rating

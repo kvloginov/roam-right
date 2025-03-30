@@ -185,28 +185,24 @@ button {
     background-position: center;
 }
 
-/* Base marker for rating 1 */
-.custom-marker[data-rating="1"] .marker-inner {
+/* Markers for ratings using class instead of data attribute */
+.custom-marker.rating-1 .marker-inner {
     background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 25 41"><path fill="%23ff4444" d="M12.5 0C5.596 0 0 5.596 0 12.5c0 7.904 12.5 28.5 12.5 28.5S25 20.404 25 12.5C25 5.596 19.404 0 12.5 0z"/><circle cx="12.5" cy="12.5" r="4" fill="%23ffffff" fill-opacity="0.8"/></svg>');
 }
 
-/* Marker for rating 2 */
-.custom-marker[data-rating="2"] .marker-inner {
+.custom-marker.rating-2 .marker-inner {
     background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 25 41"><path fill="%23ff8c00" d="M12.5 0C5.596 0 0 5.596 0 12.5c0 7.904 12.5 28.5 12.5 28.5S25 20.404 25 12.5C25 5.596 19.404 0 12.5 0z"/><circle cx="12.5" cy="12.5" r="4" fill="%23ffffff" fill-opacity="0.8"/></svg>');
 }
 
-/* Marker for rating 3 */
-.custom-marker[data-rating="3"] .marker-inner {
+.custom-marker.rating-3 .marker-inner {
     background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 25 41"><path fill="%23ffd700" d="M12.5 0C5.596 0 0 5.596 0 12.5c0 7.904 12.5 28.5 12.5 28.5S25 20.404 25 12.5C25 5.596 19.404 0 12.5 0z"/><circle cx="12.5" cy="12.5" r="4" fill="%23ffffff" fill-opacity="0.8"/></svg>');
 }
 
-/* Marker for rating 4 */
-.custom-marker[data-rating="4"] .marker-inner {
+.custom-marker.rating-4 .marker-inner {
     background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 25 41"><path fill="%2390ee90" d="M12.5 0C5.596 0 0 5.596 0 12.5c0 7.904 12.5 28.5 12.5 28.5S25 20.404 25 12.5C25 5.596 19.404 0 12.5 0z"/><circle cx="12.5" cy="12.5" r="4" fill="%23ffffff" fill-opacity="0.8"/></svg>');
 }
 
-/* Marker for rating 5 */
-.custom-marker[data-rating="5"] .marker-inner {
+.custom-marker.rating-5 .marker-inner {
     background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 25 41"><path fill="%2332cd32" d="M12.5 0C5.596 0 0 5.596 0 12.5c0 7.904 12.5 28.5 12.5 28.5S25 20.404 25 12.5C25 5.596 19.404 0 12.5 0z"/><circle cx="12.5" cy="12.5" r="4" fill="%23ffffff" fill-opacity="0.8"/></svg>');
 }
 
