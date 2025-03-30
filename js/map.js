@@ -109,6 +109,11 @@ const Map = {
         Routes.redrawRoutes();
         Points.redrawPoints();
         UI.updateRoutesList(Routes.getAll());
+        
+        // Enable Add Rating button if at least one route exists
+        const routes = Routes.getAll();
+        UI.toggleAddPointButton(routes.length === 0);
+        
         UI.updateStatus(`Loaded ${Routes.getAll().length} routes and ${Points.getAll().length} ratings.`);
     }
 };
@@ -141,4 +146,8 @@ document.addEventListener('DOMContentLoaded', () => {
             UI.updateStatus('Ready to draw or add ratings.');
         }
     });
+    
+    // Initialize Add Rating button state based on existing routes
+    const routes = Routes.getAll();
+    UI.toggleAddPointButton(routes.length === 0);
 });
