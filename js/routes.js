@@ -20,9 +20,9 @@ const Routes = {
 
         this.currentPolyline = L.polyline([], { color: 'blue' }).addTo(Map.map);
 
-        UI.updateDrawButton('Завершить рисование');
+        UI.updateDrawButton('Finish Drawing');
         UI.toggleAddPointButton(true);
-        UI.updateStatus('Рисование маршрута: кликайте по карте, чтобы добавить точки.');
+        UI.updateStatus('Drawing route: click on the map to add points.');
     },
 
     finishDrawing() {
@@ -31,7 +31,7 @@ const Routes = {
                 Map.map.removeLayer(this.currentPolyline);
             }
             this.resetDrawingState();
-            UI.updateStatus('Рисование отменено (нужно минимум 2 точки). Начните заново.');
+            UI.updateStatus('Drawing cancelled (minimum 2 points required). Start again.');
             return;
         }
 
@@ -44,7 +44,7 @@ const Routes = {
         this.currentRoutePoints = [];
 
         this.resetDrawingState();
-        UI.updateStatus(`Маршрут добавлен (${this.routes[this.routes.length - 1].length} точек). Теперь можно добавить оценки.`);
+        UI.updateStatus(`Route added (${this.routes[this.routes.length - 1].length} points). You can now add ratings.`);
     },
 
     resetDrawingState() {
@@ -52,7 +52,7 @@ const Routes = {
         Map.isAddingPoints = false;
         this.currentPolyline = null;
         this.currentRoutePoints = [];
-        UI.updateDrawButton('Начать рисовать маршрут');
+        UI.updateDrawButton('Start Drawing Route');
         UI.toggleAddPointButton(false);
     },
 
@@ -68,4 +68,4 @@ const Routes = {
             }
         });
     }
-}; 
+};

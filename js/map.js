@@ -15,7 +15,7 @@ const Map = {
         this.redrawMap();
 
         this.map.on('click', this.handleMapClick.bind(this));
-        UI.updateStatus('Карта загружена. Нажмите "Начать рисовать маршрут".');
+        UI.updateStatus('Map loaded. Click "Start Drawing Route".');
     },
 
     handleMapClick(e) {
@@ -29,7 +29,7 @@ const Map = {
     },
 
     redrawMap() {
-        // Очищаем предыдущие слои (кроме базовой карты)
+        // Clear previous layers (except base map)
         this.map.eachLayer(layer => {
             if (layer instanceof L.Polyline || layer instanceof L.Marker) {
                 this.map.removeLayer(layer);
@@ -38,15 +38,15 @@ const Map = {
 
         Routes.redrawRoutes();
         Points.redrawPoints();
-        UI.updateStatus(`Загружено ${Routes.getAll().length} маршрутов и ${Points.getAll().length} оценок.`);
+        UI.updateStatus(`Loaded ${Routes.getAll().length} routes and ${Points.getAll().length} ratings.`);
     }
 };
 
-// Инициализация при загрузке страницы
+// Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
     Map.init();
 
-    // Привязка событий к кнопкам
+    // Bind events to buttons
     document.getElementById('drawBtn').addEventListener('click', () => {
         if (Map.isDrawing) {
             Routes.finishDrawing();
@@ -61,13 +61,13 @@ document.addEventListener('DOMContentLoaded', () => {
         Map.isAddingPoints = !Map.isAddingPoints;
 
         if (Map.isAddingPoints) {
-            UI.updateAddPointButton('Завершить добавление оценок');
+            UI.updateAddPointButton('Finish Adding Ratings');
             UI.toggleDrawButton(true);
-            UI.updateStatus('Режим добавления оценок: кликните на карте, чтобы поставить точку.');
+            UI.updateStatus('Rating mode: click on the map to add a point.');
         } else {
-            UI.updateAddPointButton('Добавить оценку');
+            UI.updateAddPointButton('Add Rating');
             UI.toggleDrawButton(false);
-            UI.updateStatus('Готово к рисованию или добавлению оценок.');
+            UI.updateStatus('Ready to draw or add ratings.');
         }
     });
-}); 
+});
