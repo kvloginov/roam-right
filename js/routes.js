@@ -7,6 +7,7 @@ const Routes = {
     selectedRouteId: null,
     currentRouteStats: { duration: 0, distance: 0 },
     DEFAULT_INFLUENCE_DISTANCE: 111, // meters - значение по умолчанию
+    MAX_MICRO_SEGMENT_LENGTH: 10, // meters - максимальная длина одного микро-сегмента
 
     getColorForRating(rating) {
         if (!rating) return '#000000'; // black for no rating
@@ -33,7 +34,7 @@ const Routes = {
         return color;
     },
 
-    // Generate micro-segments of a route with approximately 1 meter segments
+    // Generate micro-segments of a route with approximately MAX_MICRO_SEGMENT_LENGTH meter segments
     createMicroSegments(routePoints) {
         const microSegments = [];
         
@@ -45,7 +46,7 @@ const Routes = {
             const distance = this.distanceToPoint(start, end);
             
             // Determine how many segments we need to create
-            const segmentCount = Math.max(1, Math.ceil(distance));
+            const segmentCount = Math.max(1, Math.ceil(distance / this.MAX_MICRO_SEGMENT_LENGTH));
             
             // For the first point in the route, add it to the microSegments
             if (i === 0) {
@@ -143,12 +144,15 @@ const Routes = {
         
         // If no points, return black color for all segments
         if (!points || points.length === 0) {
-            return routePoints.map(() => '#000000');
+            return {
+                points: routePoints,
+                colors: routePoints.map(() => '#000000')
+            };
         }
         
         console.log(`Calculating colors for ${routePoints.length} route points with ${points.length} rating points`);
         
-        // Step 1: Create micro-segments of approximately 1 meter each
+        // Step 1: Create micro-segments of approximately MAX_MICRO_SEGMENT_LENGTH meter each
         const microSegments = this.createMicroSegments(routePoints);
         console.log(`Created ${microSegments.length} micro-segments`);
         
@@ -604,9 +608,9 @@ const Routes = {
                 
                 // Create gradient polyline using micro-segments
                 const polyline = L.gradientPolyline(microPoints, {
-                    weight: route.id === this.selectedRouteId ? 5 : 2,
+                    weight: route.id === this.selectedRouteId ? 7 : 4,
                     gradientColors: microColors,
-                    opacity: 1
+                    opacity: route.id === this.selectedRouteId ? 1 : 0.5
                 }).addTo(Map.map);
             }
         });
