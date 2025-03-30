@@ -1,0 +1,9 @@
+{
+  "name": "roam-right",
+  "version": "1.0.0",
+  "description": "A web application for rating walking routes",
+  "main": "index.html",
+  "dependencies": {
+    "uuid": "^8.3.2"
+  }
+} 

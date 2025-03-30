@@ -6,10 +6,10 @@ const Storage = {
                 points: Points.getAll()
             };
             localStorage.setItem('pleasantRoutesData', JSON.stringify(dataToSave));
-            console.log('Данные сохранены в localStorage.');
+            console.log('Data saved to localStorage.');
         } catch (error) {
-            console.error('Ошибка сохранения данных в localStorage:', error);
-            UI.updateStatus('Ошибка сохранения данных!');
+            console.error('Error saving data to localStorage:', error);
+            UI.updateStatus('Error saving data!');
         }
     },
 
@@ -20,17 +20,17 @@ const Storage = {
                 const parsedData = JSON.parse(savedData);
                 Routes.setAll(parsedData.routes || []);
                 Points.setAll(parsedData.points || []);
-                console.log('Данные загружены из localStorage.');
+                console.log('Data loaded from localStorage.');
             } else {
-                console.log('Сохраненных данных не найдено.');
+                console.log('No saved data found.');
                 Routes.setAll([]);
                 Points.setAll([]);
             }
         } catch (error) {
-            console.error('Ошибка загрузки данных из localStorage:', error);
-            UI.updateStatus('Ошибка загрузки сохраненных данных!');
+            console.error('Error loading data from localStorage:', error);
+            UI.updateStatus('Error loading saved data!');
             Routes.setAll([]);
             Points.setAll([]);
         }
     }
-}; 
+};

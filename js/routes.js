@@ -2,6 +2,15 @@ const Routes = {
     routes: [],
     currentPolyline: null,
     currentRoutePoints: [],
+    guideLine: null,
+    currentRouteId: null,
+    selectedRouteId: null,
+    currentRouteStats: { duration: 0, distance: 0 },
+
+    init() {
+        // No initialization needed as we're using direct API calls
+        console.log('Routes initialized');
+    },
 
     getAll() {
         return this.routes;
@@ -17,55 +26,208 @@ const Routes = {
         Map.isDrawing = true;
         Map.isAddingPoints = false;
         this.currentRoutePoints = [];
+        this.currentRouteId = uuid.v4();
+        this.selectedRouteId = null;
+        this.currentRouteStats = { duration: 0, distance: 0 };
+
+        if (this.currentPolyline) {
+            Map.map.removeLayer(this.currentPolyline);
+            this.currentPolyline = null;
+        }
 
         this.currentPolyline = L.polyline([], { color: 'blue' }).addTo(Map.map);
+        this.guideLine = L.polyline([], { color: 'gray', dashArray: '5, 10' }).addTo(Map.map);
 
-        UI.updateDrawButton('Завершить рисование');
+        UI.updateDrawButton('Finish Drawing');
         UI.toggleAddPointButton(true);
-        UI.updateStatus('Рисование маршрута: кликайте по карте, чтобы добавить точки.');
+        UI.updateStatus('Drawing route: click on the map to add points.');
     },
 
-    finishDrawing() {
+    async finishDrawing() {
         if (!Map.isDrawing || this.currentRoutePoints.length < 2) {
             if (this.currentPolyline) {
                 Map.map.removeLayer(this.currentPolyline);
             }
+            if (this.guideLine) {
+                Map.map.removeLayer(this.guideLine);
+            }
             this.resetDrawingState();
-            UI.updateStatus('Рисование отменено (нужно минимум 2 точки). Начните заново.');
+            UI.updateStatus('Drawing cancelled (minimum 2 points required). Start again.');
             return;
         }
 
         Map.isDrawing = false;
+        UI.updateStatus('Calculating route statistics...');
 
-        this.routes.push(this.currentRoutePoints);
+        this.routes.push({
+            id: this.currentRouteId,
+            points: this.currentRoutePoints,
+            duration: Math.round(this.currentRouteStats.duration / 60), // convert to minutes
+            distance: Math.round(this.currentRouteStats.distance / 1000 * 10) / 10 // convert to kilometers
+        });
         Storage.saveData();
 
+        if (this.guideLine) {
+            Map.map.removeLayer(this.guideLine);
+        }
         this.currentPolyline = null;
         this.currentRoutePoints = [];
+        this.guideLine = null;
+        this.currentRouteId = null;
+        this.currentRouteStats = { duration: 0, distance: 0 };
 
         this.resetDrawingState();
-        UI.updateStatus(`Маршрут добавлен (${this.routes[this.routes.length - 1].length} точек). Теперь можно добавить оценки.`);
+        this.redrawRoutes();
+        UI.updateRoutesList(this.routes);
+        UI.updateStatus(`Route added (${this.routes[this.routes.length - 1].points.length} points). You can now add ratings.`);
     },
 
     resetDrawingState() {
         Map.isDrawing = false;
         Map.isAddingPoints = false;
+        if (this.guideLine) {
+            Map.map.removeLayer(this.guideLine);
+        }
         this.currentPolyline = null;
         this.currentRoutePoints = [];
-        UI.updateDrawButton('Начать рисовать маршрут');
+        this.guideLine = null;
+        this.currentRouteId = null;
+        this.currentRouteStats = { duration: 0, distance: 0 };
+        UI.updateDrawButton('Start Drawing Route');
         UI.toggleAddPointButton(false);
     },
 
-    addPointToRoute(latlng) {
-        this.currentRoutePoints.push([latlng.lat, latlng.lng]);
-        this.currentPolyline.addLatLng(latlng);
+    async addPointToRoute(latlng) {
+        if (this.currentRoutePoints.length === 0) {
+            // If this is the first point, just add it
+            this.currentRoutePoints.push([latlng.lat, latlng.lng]);
+            this.currentPolyline.addLatLng(latlng);
+            return;
+        }
+
+        try {
+            UI.updateStatus('Calculating route...');
+            // Get the last point of the route
+            const lastPoint = this.currentRoutePoints[this.currentRoutePoints.length - 1];
+            
+            // Form URL for OSRM API request with pedestrian profile
+            const coordinates = `${lastPoint[1]},${lastPoint[0]};${latlng.lng},${latlng.lat}`;
+            const params = new URLSearchParams({
+                overview: 'full',
+                geometries: 'geojson'
+            });
+            const url = `https://router.project-osrm.org/route/v1/foot/${coordinates}?${params.toString()}`;
+            
+            console.log('Requesting route from:', url);
+            
+            // Get route from API
+            const response = await fetch(url);
+            const route = await response.json();
+            
+            console.log('OSRM API response:', route);
+
+            if (route.code === 'Ok' && route.routes && route.routes[0]) {
+                // Get route points from GeoJSON
+                const coordinates = route.routes[0].geometry.coordinates;
+                const routePoints = coordinates.map(coord => [coord[1], coord[0]]);
+                
+                // Add all route points
+                routePoints.forEach(point => {
+                    this.currentRoutePoints.push(point);
+                    this.currentPolyline.addLatLng(point);
+                });
+
+                // Update route statistics
+                this.currentRouteStats.duration += route.routes[0].duration;
+                this.currentRouteStats.distance += route.routes[0].distance;
+
+                // Show route information
+                const duration = Math.round(this.currentRouteStats.duration / 60); // convert to minutes
+                const distance = Math.round(this.currentRouteStats.distance / 1000 * 10) / 10; // convert to kilometers
+                UI.updateStatus(`Route built: ${distance} km, approximately ${duration} minutes on foot`);
+            } else {
+                console.error('OSRM API error:', route.message || 'Unknown error');
+                // If street route cannot be found, add a direct line
+                this.currentRoutePoints.push([latlng.lat, latlng.lng]);
+                this.currentPolyline.addLatLng(latlng);
+                UI.updateStatus(`Could not find route along streets: ${route.message || 'Unknown error'}`);
+            }
+        } catch (error) {
+            console.error('Error getting route:', error);
+            // In case of error, add a direct line
+            this.currentRoutePoints.push([latlng.lat, latlng.lng]);
+            this.currentPolyline.addLatLng(latlng);
+            UI.updateStatus(`Error calculating route: ${error.message}`);
+        }
+    },
+
+    updateGuideLine(currentPoint, mouseLatLng) {
+        if (this.guideLine) {
+            this.guideLine.setLatLngs([currentPoint, mouseLatLng]);
+        }
+    },
+
+    selectRoute(routeId) {
+        // If selecting the same route that's already selected - cancel selection
+        if (this.selectedRouteId === routeId) {
+            if (this.currentPolyline) {
+                Map.map.removeLayer(this.currentPolyline);
+                this.currentPolyline = null;
+            }
+            this.selectedRouteId = null;
+            this.redrawRoutes();
+            UI.updateStatus('Route selection cancelled');
+            return;
+        }
+
+        this.selectedRouteId = routeId;
+        const route = this.routes.find(r => r.id === routeId);
+        if (route) {
+            // Clear previous selected route
+            if (this.currentPolyline) {
+                Map.map.removeLayer(this.currentPolyline);
+            }
+            
+            // Display selected route
+            this.currentPolyline = L.polyline(route.points, { color: 'blue', weight: 3 }).addTo(Map.map);
+            UI.updateStatus(`Selected route ${routeId.slice(0, 8)}`);
+        }
+    },
+
+    deleteRoute(routeId) {
+        const index = this.routes.findIndex(r => r.id === routeId);
+        if (index !== -1) {
+            this.routes.splice(index, 1);
+            Points.deletePointsByRouteId(routeId); // Delete all route points
+            Storage.saveData();
+            
+            // Clear map and redraw routes and points
+            if (this.currentPolyline) {
+                Map.map.removeLayer(this.currentPolyline);
+                this.currentPolyline = null;
+            }
+            this.redrawRoutes();
+            Points.redrawPoints(); // Redraw remaining points
+            UI.updateRoutesList(this.routes);
+            UI.updateStatus(`Route ${routeId.slice(0, 8)} deleted`);
+        }
     },
 
     redrawRoutes() {
-        this.routes.forEach(routeLatLngs => {
-            if (routeLatLngs && routeLatLngs.length > 1) {
-                L.polyline(routeLatLngs, { color: 'red' }).addTo(Map.map);
+        // Clear all existing routes
+        Map.map.eachLayer((layer) => {
+            if (layer instanceof L.Polyline) {
+                Map.map.removeLayer(layer);
+            }
+        });
+
+        // Redraw all routes
+        this.routes.forEach(route => {
+            if (route.points && route.points.length > 1) {
+                const color = route.id === this.selectedRouteId ? 'blue' : 'red';
+                const weight = route.id === this.selectedRouteId ? 3 : 1;
+                L.polyline(route.points, { color, weight }).addTo(Map.map);
             }
         });
     }
-}; 
+};
