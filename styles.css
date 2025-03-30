@@ -27,4 +27,64 @@ button {
     margin-top: 10px;
     font-style: italic;
     color: #555;
+}
+
+.routes-list {
+    margin-top: 20px;
+    text-align: left;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.routes-list h3 {
+    margin: 0 0 10px 0;
+    color: #333;
+}
+
+#routesList {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+#routesList li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px;
+    margin: 5px 0;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+#routesList li span {
+    flex: 1;
+    margin-right: 10px;
+}
+
+#routesList button {
+    padding: 5px 10px;
+    margin: 0 2px;
+    font-size: 12px;
+}
+
+.select-route {
+    background: #4CAF50;
+    color: white;
+    border: none;
+}
+
+.delete-route {
+    background: #f44336;
+    color: white;
+    border: none;
+}
+
+.select-route:hover {
+    background: #45a049;
+}
+
+.delete-route:hover {
+    background: #da190b;
 } 

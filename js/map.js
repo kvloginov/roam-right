@@ -46,6 +46,7 @@ const Map = {
 
         Routes.redrawRoutes();
         Points.redrawPoints();
+        UI.updateRoutesList(Routes.getAll());
         UI.updateStatus(`Loaded ${Routes.getAll().length} routes and ${Points.getAll().length} ratings.`);
     }
 };

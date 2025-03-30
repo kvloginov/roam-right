@@ -4,6 +4,7 @@ const Routes = {
     currentRoutePoints: [],
     guideLine: null,
     currentRouteId: null,
+    selectedRouteId: null,
 
     getAll() {
         return this.routes;
@@ -20,6 +21,12 @@ const Routes = {
         Map.isAddingPoints = false;
         this.currentRoutePoints = [];
         this.currentRouteId = uuid.v4();
+        this.selectedRouteId = null;
+
+        if (this.currentPolyline) {
+            Map.map.removeLayer(this.currentPolyline);
+            this.currentPolyline = null;
+        }
 
         this.currentPolyline = L.polyline([], { color: 'blue' }).addTo(Map.map);
         this.guideLine = L.polyline([], { color: 'gray', dashArray: '5, 10' }).addTo(Map.map);
@@ -59,6 +66,8 @@ const Routes = {
         this.currentRouteId = null;
 
         this.resetDrawingState();
+        this.redrawRoutes();
+        UI.updateRoutesList(this.routes);
         UI.updateStatus(`Route added (${this.routes[this.routes.length - 1].points.length} points). You can now add ratings.`);
     },
 
@@ -87,10 +96,64 @@ const Routes = {
         }
     },
 
+    selectRoute(routeId) {
+        // Если выбираем тот же маршрут, что уже выбран - отменяем выбор
+        if (this.selectedRouteId === routeId) {
+            if (this.currentPolyline) {
+                Map.map.removeLayer(this.currentPolyline);
+                this.currentPolyline = null;
+            }
+            this.selectedRouteId = null;
+            this.redrawRoutes();
+            UI.updateStatus('Выбор маршрута отменен');
+            return;
+        }
+
+        this.selectedRouteId = routeId;
+        const route = this.routes.find(r => r.id === routeId);
+        if (route) {
+            // Очищаем предыдущий выбранный маршрут
+            if (this.currentPolyline) {
+                Map.map.removeLayer(this.currentPolyline);
+            }
+            
+            // Отображаем выбранный маршрут
+            this.currentPolyline = L.polyline(route.points, { color: 'blue', weight: 3 }).addTo(Map.map);
+            UI.updateStatus(`Выбран маршрут ${routeId.slice(0, 8)}`);
+        }
+    },
+
+    deleteRoute(routeId) {
+        const index = this.routes.findIndex(r => r.id === routeId);
+        if (index !== -1) {
+            this.routes.splice(index, 1);
+            Storage.saveData();
+            
+            // Очищаем карту и перерисовываем маршруты
+            if (this.currentPolyline) {
+                Map.map.removeLayer(this.currentPolyline);
+                this.currentPolyline = null;
+            }
+            this.redrawRoutes();
+            UI.updateRoutesList(this.routes);
+            UI.updateStatus(`Маршрут ${routeId.slice(0, 8)} удален`);
+        }
+    },
+
     redrawRoutes() {
+        // Очищаем все существующие маршруты
+        Map.map.eachLayer((layer) => {
+            if (layer instanceof L.Polyline) {
+                Map.map.removeLayer(layer);
+            }
+        });
+
+        // Перерисовываем все маршруты
         this.routes.forEach(route => {
             if (route.points && route.points.length > 1) {
-                L.polyline(route.points, { color: 'red' }).addTo(Map.map);
+                const color = route.id === this.selectedRouteId ? 'blue' : 'red';
+                const weight = route.id === this.selectedRouteId ? 3 : 1;
+                L.polyline(route.points, { color, weight }).addTo(Map.map);
             }
         });
     }
