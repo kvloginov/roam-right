@@ -7,7 +7,7 @@ const Routes = {
     selectedRouteId: null,
 
     init() {
-        // Инициализация больше не нужна, так как мы будем использовать API напрямую
+        // No initialization needed as we're using direct API calls
         console.log('Routes initialized');
     },
 
@@ -92,7 +92,7 @@ const Routes = {
 
     async addPointToRoute(latlng) {
         if (this.currentRoutePoints.length === 0) {
-            // Если это первая точка, просто добавляем её
+            // If this is the first point, just add it
             this.currentRoutePoints.push([latlng.lat, latlng.lng]);
             this.currentPolyline.addLatLng(latlng);
             return;
@@ -100,39 +100,53 @@ const Routes = {
 
         try {
             UI.updateStatus('Calculating route...');
-            // Получаем последнюю точку маршрута
+            // Get the last point of the route
             const lastPoint = this.currentRoutePoints[this.currentRoutePoints.length - 1];
             
-            // Формируем URL для запроса к OSRM API
-            const url = `https://router.project-osrm.org/route/v1/driving/${lastPoint[1]},${lastPoint[0]};${latlng.lng},${latlng.lat}?overview=full&geometries=geojson`;
+            // Form URL for OSRM API request with pedestrian profile
+            const coordinates = `${lastPoint[1]},${lastPoint[0]};${latlng.lng},${latlng.lat}`;
+            const params = new URLSearchParams({
+                overview: 'full',
+                geometries: 'geojson'
+            });
+            const url = `https://router.project-osrm.org/route/v1/foot/${coordinates}?${params.toString()}`;
             
-            // Получаем маршрут через API
+            console.log('Requesting route from:', url);
+            
+            // Get route from API
             const response = await fetch(url);
             const route = await response.json();
+            
+            console.log('OSRM API response:', route);
 
             if (route.code === 'Ok' && route.routes && route.routes[0]) {
-                // Получаем точки маршрута из GeoJSON
+                // Get route points from GeoJSON
                 const coordinates = route.routes[0].geometry.coordinates;
                 const routePoints = coordinates.map(coord => [coord[1], coord[0]]);
                 
-                // Добавляем все точки маршрута
+                // Add all route points
                 routePoints.forEach(point => {
                     this.currentRoutePoints.push(point);
                     this.currentPolyline.addLatLng(point);
                 });
-                UI.updateStatus('Route calculated successfully');
+
+                // Show route information
+                const duration = Math.round(route.routes[0].duration / 60); // convert to minutes
+                const distance = Math.round(route.routes[0].distance / 1000 * 10) / 10; // convert to kilometers
+                UI.updateStatus(`Route built: ${distance} km, approximately ${duration} minutes on foot`);
             } else {
-                // Если не удалось построить маршрут по улицам, добавляем прямую линию
+                console.error('OSRM API error:', route.message || 'Unknown error');
+                // If street route cannot be found, add a direct line
                 this.currentRoutePoints.push([latlng.lat, latlng.lng]);
                 this.currentPolyline.addLatLng(latlng);
-                UI.updateStatus('Could not find route along streets, using direct line');
+                UI.updateStatus(`Could not find route along streets: ${route.message || 'Unknown error'}`);
             }
         } catch (error) {
             console.error('Error getting route:', error);
-            // В случае ошибки добавляем прямую линию
+            // In case of error, add a direct line
             this.currentRoutePoints.push([latlng.lat, latlng.lng]);
             this.currentPolyline.addLatLng(latlng);
-            UI.updateStatus('Error calculating route, using direct line');
+            UI.updateStatus(`Error calculating route: ${error.message}`);
         }
     },
 
@@ -143,7 +157,7 @@ const Routes = {
     },
 
     selectRoute(routeId) {
-        // Если выбираем тот же маршрут, что уже выбран - отменяем выбор
+        // If selecting the same route that's already selected - cancel selection
         if (this.selectedRouteId === routeId) {
             if (this.currentPolyline) {
                 Map.map.removeLayer(this.currentPolyline);
@@ -151,21 +165,21 @@ const Routes = {
             }
             this.selectedRouteId = null;
             this.redrawRoutes();
-            UI.updateStatus('Выбор маршрута отменен');
+            UI.updateStatus('Route selection cancelled');
             return;
         }
 
         this.selectedRouteId = routeId;
         const route = this.routes.find(r => r.id === routeId);
         if (route) {
-            // Очищаем предыдущий выбранный маршрут
+            // Clear previous selected route
             if (this.currentPolyline) {
                 Map.map.removeLayer(this.currentPolyline);
             }
             
-            // Отображаем выбранный маршрут
+            // Display selected route
             this.currentPolyline = L.polyline(route.points, { color: 'blue', weight: 3 }).addTo(Map.map);
-            UI.updateStatus(`Выбран маршрут ${routeId.slice(0, 8)}`);
+            UI.updateStatus(`Selected route ${routeId.slice(0, 8)}`);
         }
     },
 
@@ -173,30 +187,30 @@ const Routes = {
         const index = this.routes.findIndex(r => r.id === routeId);
         if (index !== -1) {
             this.routes.splice(index, 1);
-            Points.deletePointsByRouteId(routeId); // Удаляем все точки маршрута
+            Points.deletePointsByRouteId(routeId); // Delete all route points
             Storage.saveData();
             
-            // Очищаем карту и перерисовываем маршруты и точки
+            // Clear map and redraw routes and points
             if (this.currentPolyline) {
                 Map.map.removeLayer(this.currentPolyline);
                 this.currentPolyline = null;
             }
             this.redrawRoutes();
-            Points.redrawPoints(); // Перерисовываем оставшиеся точки
+            Points.redrawPoints(); // Redraw remaining points
             UI.updateRoutesList(this.routes);
             UI.updateStatus(`Route ${routeId.slice(0, 8)} deleted`);
         }
     },
 
     redrawRoutes() {
-        // Очищаем все существующие маршруты
+        // Clear all existing routes
         Map.map.eachLayer((layer) => {
             if (layer instanceof L.Polyline) {
                 Map.map.removeLayer(layer);
             }
         });
 
-        // Перерисовываем все маршруты
+        // Redraw all routes
         this.routes.forEach(route => {
             if (route.points && route.points.length > 1) {
                 const color = route.id === this.selectedRouteId ? 'blue' : 'red';
