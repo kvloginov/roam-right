@@ -6,6 +6,11 @@ const Routes = {
     currentRouteId: null,
     selectedRouteId: null,
 
+    init() {
+        // Инициализация больше не нужна, так как мы будем использовать API напрямую
+        console.log('Routes initialized');
+    },
+
     getAll() {
         return this.routes;
     },
@@ -85,9 +90,50 @@ const Routes = {
         UI.toggleAddPointButton(false);
     },
 
-    addPointToRoute(latlng) {
-        this.currentRoutePoints.push([latlng.lat, latlng.lng]);
-        this.currentPolyline.addLatLng(latlng);
+    async addPointToRoute(latlng) {
+        if (this.currentRoutePoints.length === 0) {
+            // Если это первая точка, просто добавляем её
+            this.currentRoutePoints.push([latlng.lat, latlng.lng]);
+            this.currentPolyline.addLatLng(latlng);
+            return;
+        }
+
+        try {
+            UI.updateStatus('Calculating route...');
+            // Получаем последнюю точку маршрута
+            const lastPoint = this.currentRoutePoints[this.currentRoutePoints.length - 1];
+            
+            // Формируем URL для запроса к OSRM API
+            const url = `https://router.project-osrm.org/route/v1/driving/${lastPoint[1]},${lastPoint[0]};${latlng.lng},${latlng.lat}?overview=full&geometries=geojson`;
+            
+            // Получаем маршрут через API
+            const response = await fetch(url);
+            const route = await response.json();
+
+            if (route.code === 'Ok' && route.routes && route.routes[0]) {
+                // Получаем точки маршрута из GeoJSON
+                const coordinates = route.routes[0].geometry.coordinates;
+                const routePoints = coordinates.map(coord => [coord[1], coord[0]]);
+                
+                // Добавляем все точки маршрута
+                routePoints.forEach(point => {
+                    this.currentRoutePoints.push(point);
+                    this.currentPolyline.addLatLng(point);
+                });
+                UI.updateStatus('Route calculated successfully');
+            } else {
+                // Если не удалось построить маршрут по улицам, добавляем прямую линию
+                this.currentRoutePoints.push([latlng.lat, latlng.lng]);
+                this.currentPolyline.addLatLng(latlng);
+                UI.updateStatus('Could not find route along streets, using direct line');
+            }
+        } catch (error) {
+            console.error('Error getting route:', error);
+            // В случае ошибки добавляем прямую линию
+            this.currentRoutePoints.push([latlng.lat, latlng.lng]);
+            this.currentPolyline.addLatLng(latlng);
+            UI.updateStatus('Error calculating route, using direct line');
+        }
     },
 
     updateGuideLine(currentPoint, mouseLatLng) {

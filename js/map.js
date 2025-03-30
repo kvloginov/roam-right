@@ -11,6 +11,7 @@ const Map = {
             attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         }).addTo(this.map);
 
+        Routes.init();
         Storage.loadData();
         this.redrawMap();
 
@@ -23,7 +24,10 @@ const Map = {
         const latlng = e.latlng;
 
         if (this.isDrawing && Routes.currentPolyline) {
-            Routes.addPointToRoute(latlng);
+            Routes.addPointToRoute(latlng).catch(error => {
+                console.error('Error adding point to route:', error);
+                UI.updateStatus('Error adding point to route. Please try again.');
+            });
         } else if (this.isAddingPoints) {
             Points.addRatedPoint(latlng);
         }
