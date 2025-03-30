@@ -215,11 +215,31 @@ const Points = {
             }
         });
 
+        // Create marker icons
+        const defaultIcon = L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+        });
+
+        const selectedIcon = L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+        });
+
         // Redraw all points
         this.points.forEach(point => {
             if (point && typeof point.lat === 'number' && typeof point.lng === 'number') {
                 const marker = L.marker([point.lat, point.lng], {
-                    data: { pointId: point.id }
+                    data: { pointId: point.id },
+                    icon: point.id === this.selectedPointId ? selectedIcon : defaultIcon
                 }).addTo(Map.map);
                 
                 marker.bindPopup(`Rating: ${point.rating || 'N/A'}/5`);

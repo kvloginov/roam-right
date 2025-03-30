@@ -56,25 +56,34 @@ const Map = {
         } else {
             // Check if click is near any point
             const points = Points.getAll();
+            let clickedNearPoint = false;
             for (const point of points) {
                 if (this.isClickNearPoint(latlng, { lat: point.lat, lng: point.lng })) {
-                    Routes.selectRoute(point.routeId);
+                    clickedNearPoint = true;
+                    Points.selectPoint(point.id);
                     return;
                 }
             }
 
             // Check if click is near any route
             const routes = Routes.getAll();
+            let clickedNearRoute = false;
             for (const route of routes) {
                 if (this.isClickNearRoute(latlng, route.points)) {
+                    clickedNearRoute = true;
                     Routes.selectRoute(route.id);
                     return;
                 }
             }
 
-            // If click is not near any route or point, deselect current route
-            if (Routes.selectedRouteId) {
-                Routes.selectRoute(Routes.selectedRouteId);
+            // If click is not near any route or point, deselect current route and point
+            if (!clickedNearPoint && !clickedNearRoute) {
+                if (Points.selectedPointId) {
+                    Points.selectPoint(Points.selectedPointId);
+                }
+                if (Routes.selectedRouteId) {
+                    Routes.selectRoute(Routes.selectedRouteId);
+                }
             }
         }
     },
