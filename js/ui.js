@@ -30,6 +30,7 @@ const UI = {
             li.innerHTML = `
                 <div class="route-header">
                     <span>Route ${route.id.slice(0, 8)} (${route.points.length} points)</span>
+                    <span class="route-stats">${route.distance} km, ${route.duration} min</span>
                     <button class="select-route" data-route-id="${route.id}">Select</button>
                     <button class="delete-route" data-route-id="${route.id}">Delete</button>
                 </div>

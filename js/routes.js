@@ -5,6 +5,7 @@ const Routes = {
     guideLine: null,
     currentRouteId: null,
     selectedRouteId: null,
+    currentRouteStats: { duration: 0, distance: 0 },
 
     init() {
         // No initialization needed as we're using direct API calls
@@ -27,6 +28,7 @@ const Routes = {
         this.currentRoutePoints = [];
         this.currentRouteId = uuid.v4();
         this.selectedRouteId = null;
+        this.currentRouteStats = { duration: 0, distance: 0 };
 
         if (this.currentPolyline) {
             Map.map.removeLayer(this.currentPolyline);
@@ -41,7 +43,7 @@ const Routes = {
         UI.updateStatus('Drawing route: click on the map to add points.');
     },
 
-    finishDrawing() {
+    async finishDrawing() {
         if (!Map.isDrawing || this.currentRoutePoints.length < 2) {
             if (this.currentPolyline) {
                 Map.map.removeLayer(this.currentPolyline);
@@ -55,10 +57,13 @@ const Routes = {
         }
 
         Map.isDrawing = false;
+        UI.updateStatus('Calculating route statistics...');
 
         this.routes.push({
             id: this.currentRouteId,
-            points: this.currentRoutePoints
+            points: this.currentRoutePoints,
+            duration: Math.round(this.currentRouteStats.duration / 60), // convert to minutes
+            distance: Math.round(this.currentRouteStats.distance / 1000 * 10) / 10 // convert to kilometers
         });
         Storage.saveData();
 
@@ -69,6 +74,7 @@ const Routes = {
         this.currentRoutePoints = [];
         this.guideLine = null;
         this.currentRouteId = null;
+        this.currentRouteStats = { duration: 0, distance: 0 };
 
         this.resetDrawingState();
         this.redrawRoutes();
@@ -86,6 +92,7 @@ const Routes = {
         this.currentRoutePoints = [];
         this.guideLine = null;
         this.currentRouteId = null;
+        this.currentRouteStats = { duration: 0, distance: 0 };
         UI.updateDrawButton('Start Drawing Route');
         UI.toggleAddPointButton(false);
     },
@@ -130,9 +137,13 @@ const Routes = {
                     this.currentPolyline.addLatLng(point);
                 });
 
+                // Update route statistics
+                this.currentRouteStats.duration += route.routes[0].duration;
+                this.currentRouteStats.distance += route.routes[0].distance;
+
                 // Show route information
-                const duration = Math.round(route.routes[0].duration / 60); // convert to minutes
-                const distance = Math.round(route.routes[0].distance / 1000 * 10) / 10; // convert to kilometers
+                const duration = Math.round(this.currentRouteStats.duration / 60); // convert to minutes
+                const distance = Math.round(this.currentRouteStats.distance / 1000 * 10) / 10; // convert to kilometers
                 UI.updateStatus(`Route built: ${distance} km, approximately ${duration} minutes on foot`);
             } else {
                 console.error('OSRM API error:', route.message || 'Unknown error');

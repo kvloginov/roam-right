@@ -70,6 +70,12 @@ button {
     margin-bottom: 8px;
 }
 
+.route-stats {
+    font-size: 0.9em;
+    color: #666;
+    margin: 0 10px;
+}
+
 .route-points {
     list-style: none;
     padding: 0;
