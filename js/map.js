@@ -15,6 +15,7 @@ const Map = {
         this.redrawMap();
 
         this.map.on('click', this.handleMapClick.bind(this));
+        this.map.on('mousemove', this.handleMouseMove.bind(this));
         UI.updateStatus('Map loaded. Click "Start Drawing Route".');
     },
 
@@ -25,6 +26,13 @@ const Map = {
             Routes.addPointToRoute(latlng);
         } else if (this.isAddingPoints) {
             Points.addRatedPoint(latlng);
+        }
+    },
+
+    handleMouseMove(e) {
+        if (this.isDrawing && Routes.currentRoutePoints.length > 0) {
+            const lastPoint = Routes.currentRoutePoints[Routes.currentRoutePoints.length - 1];
+            Routes.updateGuideLine(lastPoint, e.latlng);
         }
     },
 

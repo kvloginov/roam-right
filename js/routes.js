@@ -2,6 +2,7 @@ const Routes = {
     routes: [],
     currentPolyline: null,
     currentRoutePoints: [],
+    guideLine: null,
 
     getAll() {
         return this.routes;
@@ -19,6 +20,7 @@ const Routes = {
         this.currentRoutePoints = [];
 
         this.currentPolyline = L.polyline([], { color: 'blue' }).addTo(Map.map);
+        this.guideLine = L.polyline([], { color: 'gray', dashArray: '5, 10' }).addTo(Map.map);
 
         UI.updateDrawButton('Finish Drawing');
         UI.toggleAddPointButton(true);
@@ -30,6 +32,9 @@ const Routes = {
             if (this.currentPolyline) {
                 Map.map.removeLayer(this.currentPolyline);
             }
+            if (this.guideLine) {
+                Map.map.removeLayer(this.guideLine);
+            }
             this.resetDrawingState();
             UI.updateStatus('Drawing cancelled (minimum 2 points required). Start again.');
             return;
@@ -40,8 +45,12 @@ const Routes = {
         this.routes.push(this.currentRoutePoints);
         Storage.saveData();
 
+        if (this.guideLine) {
+            Map.map.removeLayer(this.guideLine);
+        }
         this.currentPolyline = null;
         this.currentRoutePoints = [];
+        this.guideLine = null;
 
         this.resetDrawingState();
         UI.updateStatus(`Route added (${this.routes[this.routes.length - 1].length} points). You can now add ratings.`);
@@ -50,8 +59,12 @@ const Routes = {
     resetDrawingState() {
         Map.isDrawing = false;
         Map.isAddingPoints = false;
+        if (this.guideLine) {
+            Map.map.removeLayer(this.guideLine);
+        }
         this.currentPolyline = null;
         this.currentRoutePoints = [];
+        this.guideLine = null;
         UI.updateDrawButton('Start Drawing Route');
         UI.toggleAddPointButton(false);
     },
@@ -59,6 +72,12 @@ const Routes = {
     addPointToRoute(latlng) {
         this.currentRoutePoints.push([latlng.lat, latlng.lng]);
         this.currentPolyline.addLatLng(latlng);
+    },
+
+    updateGuideLine(currentPoint, mouseLatLng) {
+        if (this.guideLine) {
+            this.guideLine.setLatLngs([currentPoint, mouseLatLng]);
+        }
     },
 
     redrawRoutes() {
