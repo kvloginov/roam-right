@@ -6,13 +6,31 @@ const Routes = {
     currentRouteId: null,
     selectedRouteId: null,
     currentRouteStats: { duration: 0, distance: 0 },
-    GRADIENT_DISTANCE: 100, // meters
+    GRADIENT_DISTANCE: 400, // meters - increased for wider influence
 
     getColorForRating(rating) {
         if (!rating) return '#000000'; // black for no rating
-        return getComputedStyle(document.documentElement)
+        
+        // Get color from CSS variable
+        let color = getComputedStyle(document.documentElement)
             .getPropertyValue(`--rating-${rating}`)
             .trim();
+            
+        // If CSS variable not found or empty, use fallback colors
+        if (!color) {
+            const fallbackColors = {
+                1: '#ff4444', // Red
+                2: '#ff8c00', // Orange
+                3: '#ffd700', // Yellow
+                4: '#90ee90', // Light green
+                5: '#32cd32'  // Green
+            };
+            color = fallbackColors[rating] || '#000000';
+            console.warn(`CSS variable --rating-${rating} not found, using fallback: ${color}`);
+        }
+        
+        console.log(`Rating ${rating} color: ${color}`);
+        return color;
     },
 
     getGradientColor(point1, point2, distance, maxDistance) {
@@ -20,109 +38,271 @@ const Routes = {
         return `rgba(0, 0, 0, ${1 - ratio})`;
     },
 
-    calculateGradientColors(route, points) {
-        const routePoints = route.points;
+    // Generate micro-segments of a route with approximately 1 meter segments
+    createMicroSegments(routePoints) {
+        const microSegments = [];
         
-        // If no points, return black color for all segments
-        if (!points || points.length === 0) {
-            return routePoints.map(() => '#000000');
-        }
-
-        // Map rating points to their positions along the route
-        const ratingPointsWithInfo = [];
-        
-        for (const point of points) {
-            let minDistance = Infinity;
-            let closestPointIndex = -1;
+        for (let i = 0; i < routePoints.length - 1; i++) {
+            const start = routePoints[i];
+            const end = routePoints[i + 1];
             
-            // Find closest route point
-            for (let i = 0; i < routePoints.length; i++) {
-                const distance = this.distanceToPoint(routePoints[i], [point.lat, point.lng]);
+            // Calculate the distance between these two points
+            const distance = this.distanceToPoint(start, end);
+            
+            // Determine how many segments we need to create
+            const segmentCount = Math.max(1, Math.ceil(distance));
+            
+            // For the first point in the route, add it to the microSegments
+            if (i === 0) {
+                microSegments.push({
+                    point: start,
+                    distance: 0,
+                    leftDistance: null,
+                    rightDistance: null,
+                    rating: null
+                });
+            }
+            
+            // Create micro-segments between start and end
+            for (let j = 1; j <= segmentCount; j++) {
+                // If this is the last segment, use the exact end point
+                if (j === segmentCount && i === routePoints.length - 2) {
+                    microSegments.push({
+                        point: end,
+                        distance: distance / segmentCount,
+                        leftDistance: null,
+                        rightDistance: null,
+                        rating: null
+                    });
+                } else if (j < segmentCount || i < routePoints.length - 2) {
+                    // For intermediate points, interpolate
+                    const ratio = j / segmentCount;
+                    const lat = start[0] + (end[0] - start[0]) * ratio;
+                    const lng = start[1] + (end[1] - start[1]) * ratio;
+                    
+                    microSegments.push({
+                        point: [lat, lng],
+                        distance: distance / segmentCount,
+                        leftDistance: null,
+                        rightDistance: null,
+                        rating: null
+                    });
+                }
+            }
+        }
+        
+        return microSegments;
+    },
+    
+    // Calculate total distances along microSegments
+    calculateCumulativeDistances(microSegments) {
+        let cumulativeDistance = 0;
+        
+        for (let i = 0; i < microSegments.length; i++) {
+            microSegments[i].cumulativeDistance = cumulativeDistance;
+            cumulativeDistance += microSegments[i].distance;
+        }
+        
+        return microSegments;
+    },
+    
+    // Find marker points and their positions along the route
+    findMarkerPoints(microSegments, ratingPoints) {
+        const MAX_INFLUENCE_DISTANCE = 111; // meters
+        const markers = [];
+        
+        // For each rating point, find the closest micro-segment
+        for (const point of ratingPoints) {
+            let closestIdx = -1;
+            let minDistance = Infinity;
+            
+            for (let i = 0; i < microSegments.length; i++) {
+                const distance = this.distanceToPoint(microSegments[i].point, [point.lat, point.lng]);
                 if (distance < minDistance) {
                     minDistance = distance;
-                    closestPointIndex = i;
+                    closestIdx = i;
                 }
             }
             
-            if (closestPointIndex >= 0) {
-                ratingPointsWithInfo.push({
-                    index: closestPointIndex,
-                    color: this.getColorForRating(point.rating),
+            // Only consider points that are close enough to the route
+            if (closestIdx !== -1 && minDistance <= MAX_INFLUENCE_DISTANCE) {
+                markers.push({
+                    index: closestIdx,
+                    distance: microSegments[closestIdx].cumulativeDistance,
                     rating: point.rating
                 });
             }
         }
         
-        // Sort by index
-        ratingPointsWithInfo.sort((a, b) => a.index - b.index);
+        // Sort markers by their position along the route
+        markers.sort((a, b) => a.distance - b.distance);
         
-        // Generate colors for each route segment
-        const colors = [];
+        return markers;
+    },
+
+    calculateGradientColors(route, points) {
+        const routePoints = route.points;
+        const MAX_INFLUENCE_DISTANCE = 111; // meters
         
-        for (let i = 0; i < routePoints.length; i++) {
-            // Find influencing points (all rating points within GRADIENT_DISTANCE)
-            const influencers = ratingPointsWithInfo.filter(p => 
-                Math.abs(p.index - i) * 25 < this.GRADIENT_DISTANCE); // Rough distance estimation
+        // If no points, return black color for all segments
+        if (!points || points.length === 0) {
+            return routePoints.map(() => '#000000');
+        }
+        
+        console.log(`Calculating colors for ${routePoints.length} route points with ${points.length} rating points`);
+        
+        // Step 1: Create micro-segments of approximately 1 meter each
+        const microSegments = this.createMicroSegments(routePoints);
+        console.log(`Created ${microSegments.length} micro-segments`);
+        
+        // Step 2: Calculate cumulative distances for each segment
+        this.calculateCumulativeDistances(microSegments);
+        
+        // Step 3 & 4: Find all markers with ratings along the route
+        const markers = this.findMarkerPoints(microSegments, points);
+        console.log(`Found ${markers.length} markers along the route:`, markers);
+        
+        // Step 5: Calculate distances from each micro-segment to the nearest markers (left and right)
+        for (let i = 0; i < microSegments.length; i++) {
+            // Find the nearest marker to the left
+            let leftMarker = null;
+            for (let j = markers.length - 1; j >= 0; j--) {
+                if (markers[j].index < i) {
+                    leftMarker = markers[j];
+                    break;
+                }
+            }
             
-            if (influencers.length === 0) {
-                // No influencers, black color
-                colors.push('#000000');
+            // Find the nearest marker to the right
+            let rightMarker = null;
+            for (let j = 0; j < markers.length; j++) {
+                if (markers[j].index > i) {
+                    rightMarker = markers[j];
+                    break;
+                }
+            }
+            
+            // Calculate distances to nearest markers
+            if (leftMarker) {
+                microSegments[i].leftDistance = microSegments[i].cumulativeDistance - leftMarker.distance;
+                microSegments[i].leftRating = leftMarker.rating;
+            }
+            
+            if (rightMarker) {
+                microSegments[i].rightDistance = rightMarker.distance - microSegments[i].cumulativeDistance;
+                microSegments[i].rightRating = rightMarker.rating;
+            }
+        }
+        
+        // Step 6: Calculate rating and strength for each micro-segment
+        for (let i = 0; i < microSegments.length; i++) {
+            const segment = microSegments[i];
+            
+            // If we're directly on a marker
+            if (markers.some(m => m.index === i)) {
+                const marker = markers.find(m => m.index === i);
+                segment.rating = marker.rating;
+                segment.strength = 1.0; // 100% strength
                 continue;
             }
             
-            // Find the closest influencers before and after this point
-            let beforePoint = null;
-            let afterPoint = null;
-            
-            for (const p of influencers) {
-                if (p.index <= i && (!beforePoint || p.index > beforePoint.index)) {
-                    beforePoint = p;
-                }
-                if (p.index >= i && (!afterPoint || p.index < afterPoint.index)) {
-                    afterPoint = p;
-                }
-            }
-            
-            if (beforePoint && afterPoint && beforePoint !== afterPoint) {
-                // We have points on both sides, blend them
-                const distanceTotal = afterPoint.index - beforePoint.index;
-                const ratio = (i - beforePoint.index) / distanceTotal;
+            // Calculate rating based on left and right markers
+            if (segment.leftDistance !== null && segment.rightDistance !== null) {
+                // We're between two markers, interpolate
+                const totalDistance = segment.leftDistance + segment.rightDistance;
+                const leftWeight = 1 - (segment.leftDistance / totalDistance);
+                const rightWeight = 1 - (segment.rightDistance / totalDistance);
                 
-                const startColor = this.hexToRgb(beforePoint.color);
-                const endColor = this.hexToRgb(afterPoint.color);
+                // Calculate weighted average of ratings
+                segment.rating = (segment.leftRating * leftWeight + segment.rightRating * rightWeight) / 
+                                (leftWeight + rightWeight);
                 
-                if (startColor && endColor) {
-                    // Linear interpolation between colors
-                    const r = Math.round(startColor.r + ratio * (endColor.r - startColor.r));
-                    const g = Math.round(startColor.g + ratio * (endColor.g - startColor.g));
-                    const b = Math.round(startColor.b + ratio * (endColor.b - startColor.b));
-                    
-                    colors.push(this.rgbToHex(r, g, b));
-                } else {
-                    colors.push(beforePoint.color);
-                }
+                // Calculate strength based on how close we are to nearest marker
+                const nearestDistance = Math.min(segment.leftDistance, segment.rightDistance);
+                segment.strength = Math.max(0, 1 - (nearestDistance / MAX_INFLUENCE_DISTANCE));
+            } else if (segment.leftDistance !== null) {
+                // Only have marker to the left
+                segment.rating = segment.leftRating;
+                segment.strength = Math.max(0, 1 - (segment.leftDistance / MAX_INFLUENCE_DISTANCE));
+            } else if (segment.rightDistance !== null) {
+                // Only have marker to the right
+                segment.rating = segment.rightRating;
+                segment.strength = Math.max(0, 1 - (segment.rightDistance / MAX_INFLUENCE_DISTANCE));
             } else {
-                // We only have one influencer
-                const point = beforePoint || afterPoint;
-                colors.push(point.color);
+                // No markers nearby, use default
+                segment.rating = null;
+                segment.strength = 0;
             }
         }
         
-        // Verify we have exactly the right number of colors
-        console.log(`Generated ${colors.length} colors for ${routePoints.length} points`);
-        if (colors.length !== routePoints.length) {
-            console.warn("Color count mismatch! Fixing...");
-            // If we don't have enough colors, add black for the rest
-            while (colors.length < routePoints.length) {
-                colors.push('#000000');
+        // Calculate colors for each micro-segment
+        const microSegmentColors = [];
+        const microSegmentPoints = [];
+        
+        for (let i = 0; i < microSegments.length; i++) {
+            const segment = microSegments[i];
+            microSegmentPoints.push(segment.point);
+            
+            // Determine the color based on the rating and strength
+            let color = '#000000'; // Default is black
+            
+            if (segment.rating) {
+                // For fractional ratings, interpolate between colors
+                const lowerRating = Math.floor(segment.rating);
+                const upperRating = Math.ceil(segment.rating);
+                
+                if (lowerRating === upperRating) {
+                    // Exact rating
+                    const ratingColor = this.getColorForRating(lowerRating);
+                    
+                    // Apply strength to color (fade to black with distance)
+                    if (segment.strength < 1) {
+                        const rgb = this.hexToRgb(ratingColor);
+                        if (rgb) {
+                            // Linear interpolation towards black based on strength
+                            const r = Math.round(rgb.r * segment.strength);
+                            const g = Math.round(rgb.g * segment.strength);
+                            const b = Math.round(rgb.b * segment.strength);
+                            color = this.rgbToHex(r, g, b);
+                        } else {
+                            color = ratingColor;
+                        }
+                    } else {
+                        color = ratingColor;
+                    }
+                } else {
+                    // Interpolate between ratings
+                    const lowerColor = this.hexToRgb(this.getColorForRating(lowerRating));
+                    const upperColor = this.hexToRgb(this.getColorForRating(upperRating));
+                    
+                    if (lowerColor && upperColor) {
+                        const ratio = segment.rating - lowerRating;
+                        
+                        // Interpolate between colors
+                        let r = Math.round(lowerColor.r + (upperColor.r - lowerColor.r) * ratio);
+                        let g = Math.round(lowerColor.g + (upperColor.g - lowerColor.g) * ratio);
+                        let b = Math.round(lowerColor.b + (upperColor.b - lowerColor.b) * ratio);
+                        
+                        // Apply strength
+                        r = Math.round(r * segment.strength);
+                        g = Math.round(g * segment.strength);
+                        b = Math.round(b * segment.strength);
+                        
+                        color = this.rgbToHex(r, g, b);
+                    }
+                }
             }
-            // If we have too many colors, trim the extras
-            if (colors.length > routePoints.length) {
-                colors.length = routePoints.length;
-            }
+            
+            microSegmentColors.push(color);
         }
         
-        return colors;
+        console.log(`Generated ${microSegmentColors.length} colors for ${microSegmentPoints.length} micro-segments`);
+        
+        // Return both the points and colors for the micro-segments
+        return {
+            points: microSegmentPoints,
+            colors: microSegmentColors
+        };
     },
 
     distanceToPoint(point1, point2) {
@@ -346,13 +526,13 @@ const Routes = {
             
             // Display selected route with gradient
             const routePoints = Points.getAll().filter(point => point.routeId === routeId);
-            const colors = this.calculateGradientColors(route, routePoints);
+            const { points: microPoints, colors: microColors } = this.calculateGradientColors(route, routePoints);
             
-            console.log("Selected route colors:", colors.length, colors);
+            console.log("Selected route micro-segments:", microPoints.length, "with colors:", microColors.length);
             
-            this.currentPolyline = L.gradientPolyline(route.points, {
+            this.currentPolyline = L.gradientPolyline(microPoints, {
                 weight: 5,
-                gradientColors: colors,
+                gradientColors: microColors,
                 opacity: 1
             }).addTo(Map.map);
             
@@ -392,14 +572,14 @@ const Routes = {
         this.routes.forEach(route => {
             if (route.points && route.points.length > 1) {
                 const routePoints = Points.getAll().filter(point => point.routeId === route.id);
-                const colors = this.calculateGradientColors(route, routePoints);
+                const { points: microPoints, colors: microColors } = this.calculateGradientColors(route, routePoints);
                 
-                console.log("Route colors:", colors.length, colors);
+                console.log("Route micro-segments:", microPoints.length, "with colors:", microColors.length);
                 
-                // Create gradient polyline
-                const polyline = L.gradientPolyline(route.points, {
+                // Create gradient polyline using micro-segments
+                const polyline = L.gradientPolyline(microPoints, {
                     weight: route.id === this.selectedRouteId ? 5 : 2,
-                    gradientColors: colors,
+                    gradientColors: microColors,
                     opacity: 1
                 }).addTo(Map.map);
             }
