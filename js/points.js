@@ -135,8 +135,8 @@ const Points = {
 
     addPoint(latlng, rating) {
         this.points.push({ 
-            lat: latlng.lat, 
-            lng: latlng.lng, 
+            lat: latlng[0], 
+            lng: latlng[1], 
             rating: rating,
             routeId: this.currentRouteId
         });
@@ -168,15 +168,29 @@ const Points = {
         marker.bindPopup(`Rating: ${rating}/5`).openPopup();
 
         this.addPoint(this.snappingPoint, rating);
+        UI.updateRoutesList(Routes.getAll());
         UI.updateStatus(`Point with rating ${rating} added. Click again or finish adding.`);
     },
 
     redrawPoints() {
+        // Clear all existing markers
+        Map.map.eachLayer((layer) => {
+            if (layer instanceof L.Marker) {
+                Map.map.removeLayer(layer);
+            }
+        });
+
+        // Redraw all points
         this.points.forEach(point => {
             if (point && typeof point.lat === 'number' && typeof point.lng === 'number') {
                 const marker = L.marker([point.lat, point.lng]).addTo(Map.map);
                 marker.bindPopup(`Rating: ${point.rating || 'N/A'}/5`);
             }
         });
+    },
+
+    deletePointsByRouteId(routeId) {
+        this.points = this.points.filter(point => point.routeId !== routeId);
+        Storage.saveData();
     }
 };

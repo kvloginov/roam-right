@@ -127,16 +127,18 @@ const Routes = {
         const index = this.routes.findIndex(r => r.id === routeId);
         if (index !== -1) {
             this.routes.splice(index, 1);
+            Points.deletePointsByRouteId(routeId); // Удаляем все точки маршрута
             Storage.saveData();
             
-            // Очищаем карту и перерисовываем маршруты
+            // Очищаем карту и перерисовываем маршруты и точки
             if (this.currentPolyline) {
                 Map.map.removeLayer(this.currentPolyline);
                 this.currentPolyline = null;
             }
             this.redrawRoutes();
+            Points.redrawPoints(); // Перерисовываем оставшиеся точки
             UI.updateRoutesList(this.routes);
-            UI.updateStatus(`Маршрут ${routeId.slice(0, 8)} удален`);
+            UI.updateStatus(`Route ${routeId.slice(0, 8)} deleted`);
         }
     },
 

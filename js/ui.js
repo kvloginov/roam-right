@@ -25,10 +25,22 @@ const UI = {
         
         routes.forEach(route => {
             const li = document.createElement('li');
+            const routePoints = Points.getAll().filter(point => point.routeId === route.id);
+            
             li.innerHTML = `
-                <span>Маршрут ${route.id.slice(0, 8)} (${route.points.length} точек)</span>
-                <button class="select-route" data-route-id="${route.id}">Выбрать</button>
-                <button class="delete-route" data-route-id="${route.id}">Удалить</button>
+                <div class="route-header">
+                    <span>Route ${route.id.slice(0, 8)} (${route.points.length} points)</span>
+                    <button class="select-route" data-route-id="${route.id}">Select</button>
+                    <button class="delete-route" data-route-id="${route.id}">Delete</button>
+                </div>
+                <ul class="route-points">
+                    ${routePoints.map(point => `
+                        <li class="point-item">
+                            <span>Rating: ${point.rating || 'N/A'}/5</span>
+                            <span class="coordinates">(${point.lat ? point.lat.toFixed(4) : 'N/A'}, ${point.lng ? point.lng.toFixed(4) : 'N/A'})</span>
+                        </li>
+                    `).join('')}
+                </ul>
             `;
             routesList.appendChild(li);
         });
