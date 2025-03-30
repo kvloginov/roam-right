@@ -444,6 +444,10 @@ const Routes = {
         this.resetDrawingState();
         this.redrawRoutes();
         UI.updateRoutesList(this.routes);
+        
+        // Update Add Rating button state
+        UI.toggleAddPointButton(this.routes.length === 0);
+        
         UI.updateStatus(`Route added (${this.routes[this.routes.length - 1].points.length} points). You can now add ratings.`);
     },
 
@@ -572,10 +576,20 @@ const Routes = {
     },
 
     deleteRoute(routeId) {
+        // Delete the route
         const index = this.routes.findIndex(r => r.id === routeId);
         if (index !== -1) {
             this.routes.splice(index, 1);
-            Points.deletePointsByRouteId(routeId); // Delete all route points
+            
+            // If this was the selected route, deselect it
+            if (this.selectedRouteId === routeId) {
+                this.selectedRouteId = null;
+            }
+            
+            // Delete any points that were on this route
+            Points.deletePointsByRouteId(routeId);
+            
+            // Save changes
             Storage.saveData();
             
             // Clear map and redraw routes and points
@@ -583,9 +597,15 @@ const Routes = {
                 Map.map.removeLayer(this.currentPolyline);
                 this.currentPolyline = null;
             }
+            
+            // Update UI
             this.redrawRoutes();
-            Points.redrawPoints(); // Redraw remaining points
+            Points.redrawPoints();
             UI.updateRoutesList(this.routes);
+            
+            // Update Add Rating button state
+            UI.toggleAddPointButton(this.routes.length === 0);
+            
             UI.updateStatus(`Route ${routeId.slice(0, 8)} deleted`);
         }
     },
