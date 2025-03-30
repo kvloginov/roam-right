@@ -166,14 +166,15 @@ const Points = {
         return Math.sqrt(dx * dx + dy * dy);
     },
 
-    addPoint(latlng, rating) {
+    addPoint(latlng, rating, influenceDistance) {
         const pointId = uuid.v4();
         this.points.push({ 
             id: pointId,
             lat: latlng[0], 
             lng: latlng[1], 
             rating: rating,
-            routeId: this.currentRouteId
+            routeId: this.currentRouteId,
+            influenceDistance: influenceDistance || Routes.DEFAULT_INFLUENCE_DISTANCE
         });
         Storage.saveData();
     },
@@ -191,6 +192,13 @@ const Points = {
             alert('Invalid rating. Please enter a number from 1 to 5.');
             return;
         }
+        
+        let influenceDistance = prompt(`Enter influence distance in meters (default: ${Routes.DEFAULT_INFLUENCE_DISTANCE}):`, Routes.DEFAULT_INFLUENCE_DISTANCE);
+        influenceDistance = parseInt(influenceDistance);
+        
+        if (isNaN(influenceDistance) || influenceDistance <= 0) {
+            influenceDistance = Routes.DEFAULT_INFLUENCE_DISTANCE;
+        }
 
         // Remove snapping marker
         if (this.snappingMarker) {
@@ -200,11 +208,11 @@ const Points = {
 
         // Add marker at the snapping point
         const marker = L.marker(this.snappingPoint).addTo(Map.map);
-        marker.bindPopup(`Rating: ${rating}/5`).openPopup();
+        marker.bindPopup(`Rating: ${rating}/5, Influence: ${influenceDistance}m`).openPopup();
 
-        this.addPoint(this.snappingPoint, rating);
+        this.addPoint(this.snappingPoint, rating, influenceDistance);
         UI.updateRoutesList(Routes.getAll());
-        UI.updateStatus(`Point with rating ${rating} added. Click again or finish adding.`);
+        UI.updateStatus(`Point with rating ${rating} and influence ${influenceDistance}m added. Click again or finish adding.`);
     },
 
     redrawPoints() {

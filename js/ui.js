@@ -40,6 +40,14 @@ const UI = {
                         <li class="point-item ${point.id === Points.selectedPointId ? 'selected' : ''}" data-point-id="${point.id}">
                             <span>Rating: ${point.rating || 'N/A'}/5</span>
                             <span class="coordinates">(${point.lat ? point.lat.toFixed(4) : 'N/A'}, ${point.lng ? point.lng.toFixed(4) : 'N/A'})</span>
+                            <div class="influence-control">
+                                <label for="influence-${point.id}">Influence: <span class="influence-value">${point.influenceDistance || Routes.DEFAULT_INFLUENCE_DISTANCE}m</span></label>
+                                <input type="range" id="influence-${point.id}" 
+                                    class="influence-slider" 
+                                    data-point-id="${point.id}"
+                                    min="10" max="500" step="10" 
+                                    value="${point.influenceDistance || Routes.DEFAULT_INFLUENCE_DISTANCE}">
+                            </div>
                         </li>
                     `).join('')}
                 </ul>
@@ -67,6 +75,26 @@ const UI = {
             item.addEventListener('click', () => {
                 const pointId = item.dataset.pointId;
                 Points.selectPoint(pointId);
+            });
+        });
+        
+        // Add event handlers for influence sliders
+        routesList.querySelectorAll('.influence-slider').forEach(slider => {
+            slider.addEventListener('input', (e) => {
+                const pointId = e.target.dataset.pointId;
+                const value = parseInt(e.target.value);
+                const point = Points.points.find(p => p.id === pointId);
+                
+                if (point) {
+                    point.influenceDistance = value;
+                    e.target.parentNode.querySelector('.influence-value').textContent = `${value}m`;
+                    Storage.saveData();
+                    
+                    // If the point's route is currently selected, redraw to update gradient
+                    if (Routes.selectedRouteId === point.routeId) {
+                        Routes.redrawRoutes();
+                    }
+                }
             });
         });
 

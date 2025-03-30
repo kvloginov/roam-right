@@ -6,7 +6,7 @@ const Routes = {
     currentRouteId: null,
     selectedRouteId: null,
     currentRouteStats: { duration: 0, distance: 0 },
-    GRADIENT_DISTANCE: 400, // meters - increased for wider influence
+    DEFAULT_INFLUENCE_DISTANCE: 111, // meters - значение по умолчанию
 
     getColorForRating(rating) {
         if (!rating) return '#000000'; // black for no rating
@@ -31,11 +31,6 @@ const Routes = {
         
         console.log(`Rating ${rating} color: ${color}`);
         return color;
-    },
-
-    getGradientColor(point1, point2, distance, maxDistance) {
-        const ratio = Math.min(distance / maxDistance, 1);
-        return `rgba(0, 0, 0, ${1 - ratio})`;
     },
 
     // Generate micro-segments of a route with approximately 1 meter segments
@@ -108,7 +103,6 @@ const Routes = {
     
     // Find marker points and their positions along the route
     findMarkerPoints(microSegments, ratingPoints) {
-        const MAX_INFLUENCE_DISTANCE = 111; // meters
         const markers = [];
         
         // For each rating point, find the closest micro-segment
@@ -124,12 +118,16 @@ const Routes = {
                 }
             }
             
+            // Get influence distance for this point or use default
+            const influenceDistance = point.influenceDistance || this.DEFAULT_INFLUENCE_DISTANCE;
+            
             // Only consider points that are close enough to the route
-            if (closestIdx !== -1 && minDistance <= MAX_INFLUENCE_DISTANCE) {
+            if (closestIdx !== -1 && minDistance <= influenceDistance) {
                 markers.push({
                     index: closestIdx,
                     distance: microSegments[closestIdx].cumulativeDistance,
-                    rating: point.rating
+                    rating: point.rating,
+                    influenceDistance: influenceDistance
                 });
             }
         }
@@ -142,7 +140,6 @@ const Routes = {
 
     calculateGradientColors(route, points) {
         const routePoints = route.points;
-        const MAX_INFLUENCE_DISTANCE = 111; // meters
         
         // If no points, return black color for all segments
         if (!points || points.length === 0) {
@@ -186,11 +183,13 @@ const Routes = {
             if (leftMarker) {
                 microSegments[i].leftDistance = microSegments[i].cumulativeDistance - leftMarker.distance;
                 microSegments[i].leftRating = leftMarker.rating;
+                microSegments[i].leftMarkerIndex = leftMarker.index;
             }
             
             if (rightMarker) {
                 microSegments[i].rightDistance = rightMarker.distance - microSegments[i].cumulativeDistance;
                 microSegments[i].rightRating = rightMarker.rating;
+                microSegments[i].rightMarkerIndex = rightMarker.index;
             }
         }
         
@@ -219,15 +218,42 @@ const Routes = {
                 
                 // Calculate strength based on how close we are to nearest marker
                 const nearestDistance = Math.min(segment.leftDistance, segment.rightDistance);
-                segment.strength = Math.max(0, 1 - (nearestDistance / MAX_INFLUENCE_DISTANCE));
+                
+                // Get influence distance from respective marker
+                let influenceDistance = this.DEFAULT_INFLUENCE_DISTANCE;
+                if (segment.leftDistance <= segment.rightDistance && markers.some(m => m.index === segment.leftMarkerIndex)) {
+                    const leftMarker = markers.find(m => m.index === segment.leftMarkerIndex);
+                    influenceDistance = leftMarker.influenceDistance;
+                } else if (markers.some(m => m.index === segment.rightMarkerIndex)) {
+                    const rightMarker = markers.find(m => m.index === segment.rightMarkerIndex);
+                    influenceDistance = rightMarker.influenceDistance;
+                }
+                
+                segment.strength = Math.max(0, 1 - (nearestDistance / influenceDistance));
             } else if (segment.leftDistance !== null) {
                 // Only have marker to the left
                 segment.rating = segment.leftRating;
-                segment.strength = Math.max(0, 1 - (segment.leftDistance / MAX_INFLUENCE_DISTANCE));
+                
+                // Get influence distance from left marker
+                let influenceDistance = this.DEFAULT_INFLUENCE_DISTANCE;
+                if (markers.some(m => m.index === segment.leftMarkerIndex)) {
+                    const leftMarker = markers.find(m => m.index === segment.leftMarkerIndex);
+                    influenceDistance = leftMarker.influenceDistance;
+                }
+                
+                segment.strength = Math.max(0, 1 - (segment.leftDistance / influenceDistance));
             } else if (segment.rightDistance !== null) {
                 // Only have marker to the right
                 segment.rating = segment.rightRating;
-                segment.strength = Math.max(0, 1 - (segment.rightDistance / MAX_INFLUENCE_DISTANCE));
+                
+                // Get influence distance from right marker
+                let influenceDistance = this.DEFAULT_INFLUENCE_DISTANCE;
+                if (markers.some(m => m.index === segment.rightMarkerIndex)) {
+                    const rightMarker = markers.find(m => m.index === segment.rightMarkerIndex);
+                    influenceDistance = rightMarker.influenceDistance;
+                }
+                
+                segment.strength = Math.max(0, 1 - (segment.rightDistance / influenceDistance));
             } else {
                 // No markers nearby, use default
                 segment.rating = null;
