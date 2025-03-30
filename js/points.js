@@ -236,9 +236,15 @@ const Points = {
         this.points.forEach(point => {
             if (point && typeof point.lat === 'number' && typeof point.lng === 'number') {
                 const marker = L.marker([point.lat, point.lng], {
-                    data: { pointId: point.id },
+                    data: { 
+                        pointId: point.id,
+                        rating: point.rating || 1
+                    },
                     icon: point.id === this.selectedPointId ? selectedIcon : defaultIcon
                 }).addTo(Map.map);
+                
+                // Set the rating data attribute for color
+                marker.getElement().setAttribute('data-rating', point.rating || 1);
                 
                 marker.bindPopup(`Rating: ${point.rating || 'N/A'}/5`);
                 
