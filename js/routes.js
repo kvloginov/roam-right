@@ -176,6 +176,7 @@ const Routes = {
             }
             this.selectedRouteId = null;
             this.redrawRoutes();
+            UI.updateRoutesList(this.routes);
             UI.updateStatus('Route selection cancelled');
             return;
         }
@@ -190,6 +191,7 @@ const Routes = {
             
             // Display selected route
             this.currentPolyline = L.polyline(route.points, { color: 'blue', weight: 3 }).addTo(Map.map);
+            UI.updateRoutesList(this.routes);
             UI.updateStatus(`Selected route ${routeId.slice(0, 8)}`);
         }
     },

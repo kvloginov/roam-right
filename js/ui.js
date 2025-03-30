@@ -26,9 +26,10 @@ const UI = {
         routes.forEach(route => {
             const li = document.createElement('li');
             const routePoints = Points.getAll().filter(point => point.routeId === route.id);
+            const isSelected = route.id === Routes.selectedRouteId;
             
             li.innerHTML = `
-                <div class="route-header">
+                <div class="route-header ${isSelected ? 'selected' : ''}">
                     <span>Route ${route.id.slice(0, 8)} (${route.points.length} points)</span>
                     <span class="route-stats">${route.distance} km, ${route.duration} min</span>
                     <button class="select-route" data-route-id="${route.id}">Select</button>
@@ -36,7 +37,7 @@ const UI = {
                 </div>
                 <ul class="route-points">
                     ${routePoints.map(point => `
-                        <li class="point-item">
+                        <li class="point-item ${point.id === Points.selectedPointId ? 'selected' : ''}" data-point-id="${point.id}">
                             <span>Rating: ${point.rating || 'N/A'}/5</span>
                             <span class="coordinates">(${point.lat ? point.lat.toFixed(4) : 'N/A'}, ${point.lng ? point.lng.toFixed(4) : 'N/A'})</span>
                         </li>
@@ -46,7 +47,7 @@ const UI = {
             routesList.appendChild(li);
         });
 
-        // Добавляем обработчики событий
+        // Add event handlers
         routesList.querySelectorAll('.select-route').forEach(button => {
             button.addEventListener('click', () => {
                 const routeId = button.dataset.routeId;
@@ -60,5 +61,19 @@ const UI = {
                 Routes.deleteRoute(routeId);
             });
         });
+
+        // Add click handlers for points
+        routesList.querySelectorAll('.point-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const pointId = item.dataset.pointId;
+                Points.selectPoint(pointId);
+            });
+        });
+
+        // Scroll to selected route if exists
+        const selectedRoute = routesList.querySelector('.route-header.selected');
+        if (selectedRoute) {
+            selectedRoute.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
     }
 }; 

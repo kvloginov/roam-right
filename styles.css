@@ -1,3 +1,11 @@
+:root {
+    --rating-1: #ff4444;  /* Red */
+    --rating-2: #ff8c00;  /* Orange */
+    --rating-3: #ffd700;  /* Yellow */
+    --rating-4: #90ee90;  /* Light green */
+    --rating-5: #32cd32;  /* Green */
+}
+
 html, body {
     height: 100%;
     margin: 0;
@@ -7,7 +15,7 @@ html, body {
 
 #map {
     width: 100%;
-    height: 70%; /* Уменьшаем высоту карты */
+    height: 70%; /* Reduce map height */
 }
 
 .controls {
@@ -32,14 +40,14 @@ button {
 .routes-list {
     margin-top: 20px;
     text-align: left;
-    min-height: 15vh; /* Начальная высота 15% */
-    max-height: 30vh; /* Максимальная высота 30% */
-    height: auto; /* Автоматическая высота */
+    min-height: 15vh; /* Initial height 15% */
+    max-height: 30vh; /* Maximum height 30% */
+    height: auto; /* Automatic height */
     overflow-y: auto;
     background: #fff;
     border-radius: 4px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    transition: max-height 0.3s ease; /* Плавное изменение высоты */
+    transition: max-height 0.3s ease; /* Smooth height change */
 }
 
 .routes-list h3 {
@@ -65,9 +73,20 @@ button {
 
 .route-header {
     display: flex;
-    align-items: center;
     justify-content: space-between;
-    margin-bottom: 8px;
+    align-items: center;
+    padding: 8px;
+    background-color: #f5f5f5;
+    margin-bottom: 4px;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.route-header.selected {
+    background-color: #e3f2fd;
+    border-left: 4px solid #2196f3;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transform: translateX(4px);
 }
 
 .route-stats {
@@ -91,6 +110,20 @@ button {
     margin: 4px 0;
     font-size: 0.9em;
     color: #666;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border-radius: 4px;
+}
+
+.point-item:hover {
+    background-color: #f5f5f5;
+}
+
+.point-item.selected {
+    background-color: #e3f2fd;
+    color: #2196f3;
+    font-weight: bold;
+    transform: translateX(4px);
 }
 
 .coordinates {
@@ -136,4 +169,46 @@ button {
     text-align: center;
     line-height: 20px;
     cursor: pointer;
+}
+
+.custom-marker {
+    background: none;
+    border: none;
+}
+
+.custom-marker .marker-inner {
+    width: 25px;
+    height: 41px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+/* Base marker for rating 1 */
+.custom-marker[data-rating="1"] .marker-inner {
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 25 41"><path fill="%23ff4444" d="M12.5 0C5.596 0 0 5.596 0 12.5c0 7.904 12.5 28.5 12.5 28.5S25 20.404 25 12.5C25 5.596 19.404 0 12.5 0z"/><circle cx="12.5" cy="12.5" r="4" fill="%23ffffff" fill-opacity="0.8"/></svg>');
+}
+
+/* Marker for rating 2 */
+.custom-marker[data-rating="2"] .marker-inner {
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 25 41"><path fill="%23ff8c00" d="M12.5 0C5.596 0 0 5.596 0 12.5c0 7.904 12.5 28.5 12.5 28.5S25 20.404 25 12.5C25 5.596 19.404 0 12.5 0z"/><circle cx="12.5" cy="12.5" r="4" fill="%23ffffff" fill-opacity="0.8"/></svg>');
+}
+
+/* Marker for rating 3 */
+.custom-marker[data-rating="3"] .marker-inner {
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 25 41"><path fill="%23ffd700" d="M12.5 0C5.596 0 0 5.596 0 12.5c0 7.904 12.5 28.5 12.5 28.5S25 20.404 25 12.5C25 5.596 19.404 0 12.5 0z"/><circle cx="12.5" cy="12.5" r="4" fill="%23ffffff" fill-opacity="0.8"/></svg>');
+}
+
+/* Marker for rating 4 */
+.custom-marker[data-rating="4"] .marker-inner {
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 25 41"><path fill="%2390ee90" d="M12.5 0C5.596 0 0 5.596 0 12.5c0 7.904 12.5 28.5 12.5 28.5S25 20.404 25 12.5C25 5.596 19.404 0 12.5 0z"/><circle cx="12.5" cy="12.5" r="4" fill="%23ffffff" fill-opacity="0.8"/></svg>');
+}
+
+/* Marker for rating 5 */
+.custom-marker[data-rating="5"] .marker-inner {
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 25 41"><path fill="%2332cd32" d="M12.5 0C5.596 0 0 5.596 0 12.5c0 7.904 12.5 28.5 12.5 28.5S25 20.404 25 12.5C25 5.596 19.404 0 12.5 0z"/><circle cx="12.5" cy="12.5" r="4" fill="%23ffffff" fill-opacity="0.8"/></svg>');
+}
+
+.custom-marker.selected .marker-inner {
+    filter: drop-shadow(0 0 2px black) drop-shadow(0 0 2px black);
 } 

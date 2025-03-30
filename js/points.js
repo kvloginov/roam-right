@@ -4,13 +4,46 @@ const Points = {
     currentRouteId: null,
     snappingPoint: null,
     snappingMarker: null,
+    selectedPointId: null,
 
     getAll() {
         return this.points;
     },
 
     setAll(newPoints) {
-        this.points = newPoints;
+        // Ensure all points have IDs
+        this.points = newPoints.map(point => {
+            if (!point.id) {
+                return { ...point, id: uuid.v4() };
+            }
+            return point;
+        });
+    },
+
+    selectPoint(pointId) {
+        // If selecting the same point that's already selected - cancel selection
+        if (this.selectedPointId === pointId) {
+            this.selectedPointId = null;
+            this.redrawPoints();
+            // Deselect the route if it was selected by this point
+            const point = this.points.find(p => p.id === pointId);
+            if (point && point.routeId === Routes.selectedRouteId) {
+                Routes.selectRoute(point.routeId);
+            }
+            UI.updateRoutesList(Routes.getAll());
+            return;
+        }
+
+        this.selectedPointId = pointId;
+        const point = this.points.find(p => p.id === pointId);
+        if (point) {
+            // Only select the route if it's different from the currently selected route
+            if (point.routeId !== Routes.selectedRouteId) {
+                Routes.selectRoute(point.routeId);
+            }
+            this.redrawPoints();
+            UI.updateRoutesList(Routes.getAll());
+        }
     },
 
     isPointNearRoute(latlng) {
@@ -134,7 +167,9 @@ const Points = {
     },
 
     addPoint(latlng, rating) {
+        const pointId = uuid.v4();
         this.points.push({ 
+            id: pointId,
             lat: latlng[0], 
             lng: latlng[1], 
             rating: rating,
@@ -180,11 +215,43 @@ const Points = {
             }
         });
 
+        // Create marker icons
+        const defaultIcon = L.divIcon({
+            className: 'custom-marker',
+            html: '<div class="marker-inner"></div>',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34]
+        });
+
+        const selectedIcon = L.divIcon({
+            className: 'custom-marker selected',
+            html: '<div class="marker-inner"></div>',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34]
+        });
+
         // Redraw all points
         this.points.forEach(point => {
             if (point && typeof point.lat === 'number' && typeof point.lng === 'number') {
-                const marker = L.marker([point.lat, point.lng]).addTo(Map.map);
+                const marker = L.marker([point.lat, point.lng], {
+                    data: { 
+                        pointId: point.id,
+                        rating: point.rating || 1
+                    },
+                    icon: point.id === this.selectedPointId ? selectedIcon : defaultIcon
+                }).addTo(Map.map);
+                
+                // Set the rating data attribute for color
+                marker.getElement().setAttribute('data-rating', point.rating || 1);
+                
                 marker.bindPopup(`Rating: ${point.rating || 'N/A'}/5`);
+                
+                // Add click handler for point selection
+                marker.on('click', () => {
+                    this.selectPoint(point.id);
+                });
             }
         });
     },
