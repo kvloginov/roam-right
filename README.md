@@ -1,10 +1,10 @@
-# Pleasant Routes
+# RoamVibe
 
 A mobile-friendly web application that helps users discover and share pleasant walking routes in their city.
 
 ## Overview
 
-Pleasant Routes is a community-driven platform where users can:
+RoamVibe is a community-driven platform where users can:
 - Draw and rate specific street segments along their walking routes
 - Share their favorite walking paths with others
 - Discover pleasant routes recommended by the community
