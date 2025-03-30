@@ -10,14 +10,9 @@ const Routes = {
 
     getColorForRating(rating) {
         if (!rating) return '#000000'; // black for no rating
-        const colors = {
-            1: '#FF0000', // red
-            2: '#FF6600', // orange
-            3: '#FFFF00', // yellow
-            4: '#00FF00', // green
-            5: '#0000FF'  // blue
-        };
-        return colors[rating] || '#000000';
+        return getComputedStyle(document.documentElement)
+            .getPropertyValue(`--rating-${rating}`)
+            .trim();
     },
 
     getGradientColor(point1, point2, distance, maxDistance) {
@@ -27,45 +22,106 @@ const Routes = {
 
     calculateGradientColors(route, points) {
         const routePoints = route.points;
-        const colors = [];
         
-        // If no points, return black color
+        // If no points, return black color for all segments
         if (!points || points.length === 0) {
             return routePoints.map(() => '#000000');
         }
 
-        // For each route point, calculate its color based on nearby rating points
-        for (let i = 0; i < routePoints.length; i++) {
-            let totalWeight = 0;
-            let r = 0, g = 0, b = 0;
-
-            // Check each rating point
-            for (const point of points) {
+        // Map rating points to their positions along the route
+        const ratingPointsWithInfo = [];
+        
+        for (const point of points) {
+            let minDistance = Infinity;
+            let closestPointIndex = -1;
+            
+            // Find closest route point
+            for (let i = 0; i < routePoints.length; i++) {
                 const distance = this.distanceToPoint(routePoints[i], [point.lat, point.lng]);
-                if (distance <= this.GRADIENT_DISTANCE) {
-                    const weight = 1 - (distance / this.GRADIENT_DISTANCE);
-                    const color = this.getColorForRating(point.rating);
-                    
-                    // Convert hex to RGB
-                    const rgb = this.hexToRgb(color);
-                    r += rgb.r * weight;
-                    g += rgb.g * weight;
-                    b += rgb.b * weight;
-                    totalWeight += weight;
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    closestPointIndex = i;
                 }
             }
-
-            if (totalWeight > 0) {
-                // Normalize the color
-                r = Math.round(r / totalWeight);
-                g = Math.round(g / totalWeight);
-                b = Math.round(b / totalWeight);
-                colors.push(this.rgbToHex(r, g, b));
-            } else {
-                colors.push('#000000');
+            
+            if (closestPointIndex >= 0) {
+                ratingPointsWithInfo.push({
+                    index: closestPointIndex,
+                    color: this.getColorForRating(point.rating),
+                    rating: point.rating
+                });
             }
         }
-
+        
+        // Sort by index
+        ratingPointsWithInfo.sort((a, b) => a.index - b.index);
+        
+        // Generate colors for each route segment
+        const colors = [];
+        
+        for (let i = 0; i < routePoints.length; i++) {
+            // Find influencing points (all rating points within GRADIENT_DISTANCE)
+            const influencers = ratingPointsWithInfo.filter(p => 
+                Math.abs(p.index - i) * 25 < this.GRADIENT_DISTANCE); // Rough distance estimation
+            
+            if (influencers.length === 0) {
+                // No influencers, black color
+                colors.push('#000000');
+                continue;
+            }
+            
+            // Find the closest influencers before and after this point
+            let beforePoint = null;
+            let afterPoint = null;
+            
+            for (const p of influencers) {
+                if (p.index <= i && (!beforePoint || p.index > beforePoint.index)) {
+                    beforePoint = p;
+                }
+                if (p.index >= i && (!afterPoint || p.index < afterPoint.index)) {
+                    afterPoint = p;
+                }
+            }
+            
+            if (beforePoint && afterPoint && beforePoint !== afterPoint) {
+                // We have points on both sides, blend them
+                const distanceTotal = afterPoint.index - beforePoint.index;
+                const ratio = (i - beforePoint.index) / distanceTotal;
+                
+                const startColor = this.hexToRgb(beforePoint.color);
+                const endColor = this.hexToRgb(afterPoint.color);
+                
+                if (startColor && endColor) {
+                    // Linear interpolation between colors
+                    const r = Math.round(startColor.r + ratio * (endColor.r - startColor.r));
+                    const g = Math.round(startColor.g + ratio * (endColor.g - startColor.g));
+                    const b = Math.round(startColor.b + ratio * (endColor.b - startColor.b));
+                    
+                    colors.push(this.rgbToHex(r, g, b));
+                } else {
+                    colors.push(beforePoint.color);
+                }
+            } else {
+                // We only have one influencer
+                const point = beforePoint || afterPoint;
+                colors.push(point.color);
+            }
+        }
+        
+        // Verify we have exactly the right number of colors
+        console.log(`Generated ${colors.length} colors for ${routePoints.length} points`);
+        if (colors.length !== routePoints.length) {
+            console.warn("Color count mismatch! Fixing...");
+            // If we don't have enough colors, add black for the rest
+            while (colors.length < routePoints.length) {
+                colors.push('#000000');
+            }
+            // If we have too many colors, trim the extras
+            if (colors.length > routePoints.length) {
+                colors.length = routePoints.length;
+            }
+        }
+        
         return colors;
     },
 
@@ -292,8 +348,10 @@ const Routes = {
             const routePoints = Points.getAll().filter(point => point.routeId === routeId);
             const colors = this.calculateGradientColors(route, routePoints);
             
+            console.log("Selected route colors:", colors.length, colors);
+            
             this.currentPolyline = L.gradientPolyline(route.points, {
-                weight: 3,
+                weight: 5,
                 gradientColors: colors,
                 opacity: 1
             }).addTo(Map.map);
@@ -325,7 +383,7 @@ const Routes = {
     redrawRoutes() {
         // Clear all existing routes
         Map.map.eachLayer((layer) => {
-            if (layer instanceof L.Polyline) {
+            if (layer instanceof L.Polyline || layer instanceof L.LayerGroup) {
                 Map.map.removeLayer(layer);
             }
         });
@@ -336,9 +394,11 @@ const Routes = {
                 const routePoints = Points.getAll().filter(point => point.routeId === route.id);
                 const colors = this.calculateGradientColors(route, routePoints);
                 
+                console.log("Route colors:", colors.length, colors);
+                
                 // Create gradient polyline
                 const polyline = L.gradientPolyline(route.points, {
-                    weight: route.id === this.selectedRouteId ? 3 : 2,
+                    weight: route.id === this.selectedRouteId ? 5 : 2,
                     gradientColors: colors,
                     opacity: 1
                 }).addTo(Map.map);
