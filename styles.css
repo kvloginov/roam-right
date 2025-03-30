@@ -65,9 +65,20 @@ button {
 
 .route-header {
     display: flex;
-    align-items: center;
     justify-content: space-between;
-    margin-bottom: 8px;
+    align-items: center;
+    padding: 8px;
+    background-color: #f5f5f5;
+    margin-bottom: 4px;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.route-header.selected {
+    background-color: #e3f2fd;
+    border-left: 4px solid #2196f3;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transform: translateX(4px);
 }
 
 .route-stats {

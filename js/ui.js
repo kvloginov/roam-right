@@ -26,9 +26,10 @@ const UI = {
         routes.forEach(route => {
             const li = document.createElement('li');
             const routePoints = Points.getAll().filter(point => point.routeId === route.id);
+            const isSelected = route.id === Routes.selectedRouteId;
             
             li.innerHTML = `
-                <div class="route-header">
+                <div class="route-header ${isSelected ? 'selected' : ''}">
                     <span>Route ${route.id.slice(0, 8)} (${route.points.length} points)</span>
                     <span class="route-stats">${route.distance} km, ${route.duration} min</span>
                     <button class="select-route" data-route-id="${route.id}">Select</button>
@@ -60,5 +61,11 @@ const UI = {
                 Routes.deleteRoute(routeId);
             });
         });
+
+        // Scroll to selected route if exists
+        const selectedRoute = routesList.querySelector('.route-header.selected');
+        if (selectedRoute) {
+            selectedRoute.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
     }
 }; 

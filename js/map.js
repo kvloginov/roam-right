@@ -2,6 +2,7 @@ const Map = {
     map: null,
     isDrawing: false,
     isAddingPoints: false,
+    CLICK_TOLERANCE: 0.0002, // approximately 20 meters
 
     init() {
         this.map = L.map('map').setView([51.1694, 71.4491], 13);
@@ -20,6 +21,28 @@ const Map = {
         UI.updateStatus('Map loaded. Click "Start Drawing Route".');
     },
 
+    isClickNearPoint(clickLatLng, pointLatLng) {
+        const latDiff = Math.abs(clickLatLng.lat - pointLatLng.lat);
+        const lngDiff = Math.abs(clickLatLng.lng - pointLatLng.lng);
+        return latDiff <= this.CLICK_TOLERANCE && lngDiff <= this.CLICK_TOLERANCE;
+    },
+
+    isClickNearRoute(clickLatLng, routePoints) {
+        for (let i = 0; i < routePoints.length - 1; i++) {
+            const start = routePoints[i];
+            const end = routePoints[i + 1];
+            const distance = Points.distanceToLineSegment(
+                clickLatLng.lat, clickLatLng.lng,
+                start[0], start[1],
+                end[0], end[1]
+            );
+            if (distance <= this.CLICK_TOLERANCE) {
+                return true;
+            }
+        }
+        return false;
+    },
+
     handleMapClick(e) {
         const latlng = e.latlng;
 
@@ -30,6 +53,29 @@ const Map = {
             });
         } else if (this.isAddingPoints) {
             Points.addRatedPoint(latlng);
+        } else {
+            // Check if click is near any point
+            const points = Points.getAll();
+            for (const point of points) {
+                if (this.isClickNearPoint(latlng, { lat: point.lat, lng: point.lng })) {
+                    Routes.selectRoute(point.routeId);
+                    return;
+                }
+            }
+
+            // Check if click is near any route
+            const routes = Routes.getAll();
+            for (const route of routes) {
+                if (this.isClickNearRoute(latlng, route.points)) {
+                    Routes.selectRoute(route.id);
+                    return;
+                }
+            }
+
+            // If click is not near any route or point, deselect current route
+            if (Routes.selectedRouteId) {
+                Routes.selectRoute(Routes.selectedRouteId);
+            }
         }
     },
 
