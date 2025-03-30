@@ -6,6 +6,99 @@ const Routes = {
     currentRouteId: null,
     selectedRouteId: null,
     currentRouteStats: { duration: 0, distance: 0 },
+    GRADIENT_DISTANCE: 100, // meters
+
+    getColorForRating(rating) {
+        if (!rating) return '#000000'; // black for no rating
+        const colors = {
+            1: '#FF0000', // red
+            2: '#FF6600', // orange
+            3: '#FFFF00', // yellow
+            4: '#00FF00', // green
+            5: '#0000FF'  // blue
+        };
+        return colors[rating] || '#000000';
+    },
+
+    getGradientColor(point1, point2, distance, maxDistance) {
+        const ratio = Math.min(distance / maxDistance, 1);
+        return `rgba(0, 0, 0, ${1 - ratio})`;
+    },
+
+    calculateGradientColors(route, points) {
+        const routePoints = route.points;
+        const colors = [];
+        
+        // If no points, return black color
+        if (!points || points.length === 0) {
+            return routePoints.map(() => '#000000');
+        }
+
+        // For each route point, calculate its color based on nearby rating points
+        for (let i = 0; i < routePoints.length; i++) {
+            let totalWeight = 0;
+            let r = 0, g = 0, b = 0;
+
+            // Check each rating point
+            for (const point of points) {
+                const distance = this.distanceToPoint(routePoints[i], [point.lat, point.lng]);
+                if (distance <= this.GRADIENT_DISTANCE) {
+                    const weight = 1 - (distance / this.GRADIENT_DISTANCE);
+                    const color = this.getColorForRating(point.rating);
+                    
+                    // Convert hex to RGB
+                    const rgb = this.hexToRgb(color);
+                    r += rgb.r * weight;
+                    g += rgb.g * weight;
+                    b += rgb.b * weight;
+                    totalWeight += weight;
+                }
+            }
+
+            if (totalWeight > 0) {
+                // Normalize the color
+                r = Math.round(r / totalWeight);
+                g = Math.round(g / totalWeight);
+                b = Math.round(b / totalWeight);
+                colors.push(this.rgbToHex(r, g, b));
+            } else {
+                colors.push('#000000');
+            }
+        }
+
+        return colors;
+    },
+
+    distanceToPoint(point1, point2) {
+        const R = 6371e3; // Earth's radius in meters
+        const φ1 = point1[0] * Math.PI/180;
+        const φ2 = point2[0] * Math.PI/180;
+        const Δφ = (point2[0]-point1[0]) * Math.PI/180;
+        const Δλ = (point2[1]-point1[1]) * Math.PI/180;
+
+        const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                Math.cos(φ1) * Math.cos(φ2) *
+                Math.sin(Δλ/2) * Math.sin(Δλ/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+        return R * c; // Distance in meters
+    },
+
+    hexToRgb(hex) {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? {
+            r: parseInt(result[1], 16),
+            g: parseInt(result[2], 16),
+            b: parseInt(result[3], 16)
+        } : null;
+    },
+
+    rgbToHex(r, g, b) {
+        return '#' + [r, g, b].map(x => {
+            const hex = x.toString(16);
+            return hex.length === 1 ? '0' + hex : hex;
+        }).join('');
+    },
 
     init() {
         // No initialization needed as we're using direct API calls
@@ -35,7 +128,13 @@ const Routes = {
             this.currentPolyline = null;
         }
 
-        this.currentPolyline = L.polyline([], { color: 'blue' }).addTo(Map.map);
+        // Create initial polyline
+        this.currentPolyline = L.polyline([], {
+            weight: 2,
+            color: '#0000FF',
+            opacity: 1
+        }).addTo(Map.map);
+        
         this.guideLine = L.polyline([], { color: 'gray', dashArray: '5, 10' }).addTo(Map.map);
 
         UI.updateDrawButton('Finish Drawing');
@@ -189,8 +288,16 @@ const Routes = {
                 Map.map.removeLayer(this.currentPolyline);
             }
             
-            // Display selected route
-            this.currentPolyline = L.polyline(route.points, { color: 'blue', weight: 3 }).addTo(Map.map);
+            // Display selected route with gradient
+            const routePoints = Points.getAll().filter(point => point.routeId === routeId);
+            const colors = this.calculateGradientColors(route, routePoints);
+            
+            this.currentPolyline = L.gradientPolyline(route.points, {
+                weight: 3,
+                gradientColors: colors,
+                opacity: 1
+            }).addTo(Map.map);
+            
             UI.updateRoutesList(this.routes);
             UI.updateStatus(`Selected route ${routeId.slice(0, 8)}`);
         }
@@ -226,9 +333,15 @@ const Routes = {
         // Redraw all routes
         this.routes.forEach(route => {
             if (route.points && route.points.length > 1) {
-                const color = route.id === this.selectedRouteId ? 'blue' : 'red';
-                const weight = route.id === this.selectedRouteId ? 3 : 1;
-                L.polyline(route.points, { color, weight }).addTo(Map.map);
+                const routePoints = Points.getAll().filter(point => point.routeId === route.id);
+                const colors = this.calculateGradientColors(route, routePoints);
+                
+                // Create gradient polyline
+                const polyline = L.gradientPolyline(route.points, {
+                    weight: route.id === this.selectedRouteId ? 3 : 2,
+                    gradientColors: colors,
+                    opacity: 1
+                }).addTo(Map.map);
             }
         });
     }
