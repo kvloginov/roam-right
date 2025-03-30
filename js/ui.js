@@ -37,7 +37,7 @@ const UI = {
                 </div>
                 <ul class="route-points">
                     ${routePoints.map(point => `
-                        <li class="point-item">
+                        <li class="point-item ${point.id === Points.selectedPointId ? 'selected' : ''}" data-point-id="${point.id}">
                             <span>Rating: ${point.rating || 'N/A'}/5</span>
                             <span class="coordinates">(${point.lat ? point.lat.toFixed(4) : 'N/A'}, ${point.lng ? point.lng.toFixed(4) : 'N/A'})</span>
                         </li>
@@ -47,7 +47,7 @@ const UI = {
             routesList.appendChild(li);
         });
 
-        // Добавляем обработчики событий
+        // Add event handlers
         routesList.querySelectorAll('.select-route').forEach(button => {
             button.addEventListener('click', () => {
                 const routeId = button.dataset.routeId;
@@ -59,6 +59,14 @@ const UI = {
             button.addEventListener('click', () => {
                 const routeId = button.dataset.routeId;
                 Routes.deleteRoute(routeId);
+            });
+        });
+
+        // Add click handlers for points
+        routesList.querySelectorAll('.point-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const pointId = item.dataset.pointId;
+                Points.selectPoint(pointId);
             });
         });
 
