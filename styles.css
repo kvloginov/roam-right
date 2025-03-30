@@ -87,4 +87,13 @@ button {
 
 .delete-route:hover {
     background: #da190b;
+}
+
+.snapping-point {
+    color: #ff0000;
+    font-size: 24px;
+    font-weight: bold;
+    text-align: center;
+    line-height: 20px;
+    cursor: pointer;
 } 

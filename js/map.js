@@ -33,6 +33,9 @@ const Map = {
         if (this.isDrawing && Routes.currentRoutePoints.length > 0) {
             const lastPoint = Routes.currentRoutePoints[Routes.currentRoutePoints.length - 1];
             Routes.updateGuideLine(lastPoint, e.latlng);
+        } else if (this.isAddingPoints) {
+            // Show snapping point preview when adding points
+            Points.isPointNearRoute(e.latlng);
         }
     },
 
