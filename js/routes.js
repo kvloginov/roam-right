@@ -3,6 +3,7 @@ const Routes = {
     currentPolyline: null,
     currentRoutePoints: [],
     guideLine: null,
+    currentRouteId: null,
 
     getAll() {
         return this.routes;
@@ -18,6 +19,7 @@ const Routes = {
         Map.isDrawing = true;
         Map.isAddingPoints = false;
         this.currentRoutePoints = [];
+        this.currentRouteId = uuid.v4();
 
         this.currentPolyline = L.polyline([], { color: 'blue' }).addTo(Map.map);
         this.guideLine = L.polyline([], { color: 'gray', dashArray: '5, 10' }).addTo(Map.map);
@@ -42,7 +44,10 @@ const Routes = {
 
         Map.isDrawing = false;
 
-        this.routes.push(this.currentRoutePoints);
+        this.routes.push({
+            id: this.currentRouteId,
+            points: this.currentRoutePoints
+        });
         Storage.saveData();
 
         if (this.guideLine) {
@@ -51,9 +56,10 @@ const Routes = {
         this.currentPolyline = null;
         this.currentRoutePoints = [];
         this.guideLine = null;
+        this.currentRouteId = null;
 
         this.resetDrawingState();
-        UI.updateStatus(`Route added (${this.routes[this.routes.length - 1].length} points). You can now add ratings.`);
+        UI.updateStatus(`Route added (${this.routes[this.routes.length - 1].points.length} points). You can now add ratings.`);
     },
 
     resetDrawingState() {
@@ -65,6 +71,7 @@ const Routes = {
         this.currentPolyline = null;
         this.currentRoutePoints = [];
         this.guideLine = null;
+        this.currentRouteId = null;
         UI.updateDrawButton('Start Drawing Route');
         UI.toggleAddPointButton(false);
     },
@@ -81,9 +88,9 @@ const Routes = {
     },
 
     redrawRoutes() {
-        this.routes.forEach(routeLatLngs => {
-            if (routeLatLngs && routeLatLngs.length > 1) {
-                L.polyline(routeLatLngs, { color: 'red' }).addTo(Map.map);
+        this.routes.forEach(route => {
+            if (route.points && route.points.length > 1) {
+                L.polyline(route.points, { color: 'red' }).addTo(Map.map);
             }
         });
     }
